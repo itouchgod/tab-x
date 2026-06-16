@@ -5,10 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tab X</title>
 
-  <!-- Google Fonts: Newsreader (for headings/numbers) + DM Sans (for body text) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300;1,6..72,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -25,6 +21,20 @@
       <h1 id="greeting"></h1>
       <!-- Solar-term metadata — written by updateGanzhiHeader() in app.js -->
       <div class="date" id="dateDisplay"></div>
+    </div>
+    <form class="new-tab-search header-search" id="newTabSearchForm" role="search">
+      <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.197 5.197a7.5 7.5 0 0 0 10.606 10.606Z" />
+      </svg>
+      <input id="newTabSearchInput" type="text" autocomplete="off" spellcheck="false" placeholder="Search Google or type a URL" aria-label="Search Google or type a URL">
+      <button class="search-submit" type="submit" title="Search">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+        </svg>
+      </button>
+    </form>
+    <div class="header-right" aria-label="Status">
+      <div class="word-clock-header" id="wordClockFooter" aria-label="Word clock"></div>
     </div>
   </header>
 
@@ -47,25 +57,12 @@
   </div>
 
   <!-- ================================================================
-       START AREA — search + top sites, just like a useful new tab
+       START AREA — top sites, just like a useful new tab
        ================================================================ -->
   <section class="start-section" aria-label="Start">
-    <form class="new-tab-search" id="newTabSearchForm" role="search">
-      <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
-        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.197 5.197a7.5 7.5 0 0 0 10.606 10.606Z" />
-      </svg>
-      <input id="newTabSearchInput" type="text" autocomplete="off" spellcheck="false" placeholder="Search Google or type a URL" aria-label="Search Google or type a URL">
-      <button class="search-submit" type="submit" title="Search">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-        </svg>
-      </button>
-    </form>
-
     <div class="favorites-section" id="favoritesSection" style="display:none">
       <div class="section-header start-header">
         <h2>Top sites</h2>
-        <div class="section-line"></div>
         <div class="section-count" id="favoritesCount"></div>
       </div>
       <div class="favorite-links" id="favoriteLinks"></div>
@@ -84,7 +81,6 @@
     <div class="active-section" id="openTabsSection" style="display:none">
       <div class="section-header">
         <h2 id="openTabsSectionTitle">Right now</h2>
-        <div class="section-line"></div>
         <div class="section-count" id="openTabsSectionCount"></div>
       </div>
       <div class="missions" id="openTabsMissions"></div>
@@ -94,7 +90,6 @@
     <div class="deferred-column" id="deferredColumn" style="display:none">
       <div class="section-header">
         <h2>Saved for later</h2>
-        <div class="section-line"></div>
         <div class="section-count" id="deferredCount"></div>
       </div>
 
@@ -106,36 +101,9 @@
         Nothing saved. Living in the moment.
       </div>
 
-      <!-- Archive section — collapsed by default -->
-      <div class="deferred-archive" id="deferredArchive" style="display:none">
-        <button class="archive-toggle" id="archiveToggle">
-          <svg class="archive-chevron" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
-          Archive
-          <span class="archive-count" id="archiveCount"></span>
-        </button>
-        <div class="archive-body" id="archiveBody" style="display:none">
-          <input type="text" class="archive-search" id="archiveSearch" placeholder="Search archived tabs...">
-          <div class="archive-list" id="archiveList"></div>
-        </div>
-      </div>
     </div>
 
   </div><!-- end .dashboard-columns -->
-
-  <!-- ================================================================
-       FOOTER — global stats + refresh control
-       ================================================================ -->
-  <footer>
-    <div class="footer-stats">
-      <div class="stat">
-        <div class="stat-num" id="statTabs">—</div>
-        <div class="stat-label">Open tabs</div>
-      </div>
-    </div>
-    <div class="last-refresh">
-      <span style="color: var(--muted); font-size: 11px;">Tab X by L</span>
-    </div>
-  </footer>
 
 </div><!-- end .container -->
 
@@ -151,7 +119,7 @@
   <span id="toastText"></span>
 </div>
 
-<!-- Personal config (gitignored) — defines LOCAL_LANDING_PAGE_PATTERNS etc. -->
+<!-- Personal config (gitignored) — can define LOCAL_CUSTOM_GROUPS etc. -->
 <!-- If the file doesn't exist, that's fine — app.js uses sensible defaults. -->
 <script src="config.local.js" onerror="/* no personal config, that's fine */"></script>
 

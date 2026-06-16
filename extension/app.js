@@ -25,6 +25,7 @@
 
 // All open tabs — populated by fetchOpenTabs()
 let openTabs = [];
+const collapsedDomainIds = new Set();
 
 /**
  * fetchOpenTabs()
@@ -430,6 +431,46 @@ function animateCardOut(card) {
   }, 300);
 }
 
+function refreshDomainCardAfterChipRemoval(card) {
+  if (!card) return;
+
+  const remainingChips = card.querySelectorAll('.page-chip[data-action="focus-tab"]:not(.closing-tab)').length;
+  if (remainingChips === 0) {
+    animateCardOut(card);
+    return;
+  }
+
+  const countPill = card.querySelector('.mission-count-pill');
+  if (countPill) countPill.textContent = remainingChips;
+
+  const groupCloseButton = card.querySelector('.actions .close-tabs');
+  if (groupCloseButton) {
+    if (remainingChips > 1) {
+      groupCloseButton.style.display = '';
+    } else {
+      groupCloseButton.style.opacity = '0';
+      groupCloseButton.style.pointerEvents = 'none';
+      setTimeout(() => groupCloseButton.remove(), 180);
+    }
+  }
+}
+
+function animateChipOut(chip, afterRemove) {
+  if (!chip) {
+    afterRemove?.();
+    return;
+  }
+
+  const rect = chip.getBoundingClientRect();
+  shootConfetti(rect.right - 38, rect.top + rect.height / 2);
+  chip.classList.add('closing-tab');
+
+  setTimeout(() => {
+    chip.remove();
+    afterRemove?.();
+  }, 260);
+}
+
 /**
  * showToast(message)
  *
@@ -440,6 +481,19 @@ function showToast(message) {
   document.getElementById('toastText').textContent = message;
   toast.classList.add('visible');
   setTimeout(() => toast.classList.remove('visible'), 2500);
+}
+
+function updateOpenTabsSectionSummary(tabCount, domainCount) {
+  const countEl = document.getElementById('openTabsSectionCount');
+  if (!countEl) return;
+
+  const tabLabel = `${tabCount} tab${tabCount !== 1 ? 's' : ''}`;
+  const domainLabel = `${domainCount} domain${domainCount !== 1 ? 's' : ''}`;
+  const closeButton = tabCount > 0
+    ? ` &nbsp;&middot;&nbsp; <button class="action-btn close-tabs" data-action="close-all-open-tabs" style="font-size:11px;padding:3px 10px;">Close All</button>`
+    : '';
+
+  countEl.innerHTML = `${tabLabel} &nbsp;&middot;&nbsp; ${domainLabel}${closeButton}`;
 }
 
 /**
@@ -467,7 +521,7 @@ function checkAndShowEmptyState() {
   `;
 
   const countEl = document.getElementById('openTabsSectionCount');
-  if (countEl) countEl.textContent = '0 domains';
+  if (countEl) updateOpenTabsSectionSummary(0, 0);
 }
 
 /**
@@ -675,9 +729,8 @@ function gzTermMeta(now, month) {
     minute: "2-digit",
     hour12: false,
   }).format(date);
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "本机时区";
 
-  return `节令 ${month.term.name} ${formatTermDate(month.term.date)} · ${GZ_BRANCHES[month.branchIndex]}月 · ${timezone} · 下一节气 ${nextTerm.name} ${formatTermDate(nextTerm.date)}`;
+  return `${month.term.name} ${formatTermDate(month.term.date)} · ${GZ_BRANCHES[month.branchIndex]}月 · ${nextTerm.name} ${formatTermDate(nextTerm.date)}`;
 }
 
 function renderGanzhiHeader() {
@@ -706,6 +759,126 @@ function updateGanzhiHeader() {
   const ganzhiHeader = renderGanzhiHeader();
   if (greetingEl) greetingEl.innerHTML = ganzhiHeader.html;
   if (dateEl) dateEl.textContent = ganzhiHeader.meta;
+}
+
+const WORD_CLOCK_NUMBERS = {
+  1: "one",
+  2: "two",
+  3: "three",
+  4: "four",
+  5: "five",
+  6: "six",
+  7: "seven",
+  8: "eight",
+  9: "nine",
+  10: "ten",
+  11: "eleven",
+  12: "twelve",
+  13: "thirteen",
+  14: "fourteen",
+  15: "fifteen",
+  16: "sixteen",
+  17: "seventeen",
+  18: "eighteen",
+  19: "nineteen",
+  20: "twenty",
+  21: "twenty-one",
+  22: "twenty-two",
+  23: "twenty-three",
+  24: "twenty-four",
+  25: "twenty-five",
+  26: "twenty-six",
+  27: "twenty-seven",
+  28: "twenty-eight",
+  29: "twenty-nine",
+};
+
+function wordClockHour(hour24) {
+  const hour = hour24 % 12;
+  return hour === 0 ? 12 : hour;
+}
+
+function wordClockMinuteUnit(value) {
+  return value === 1 ? "minute" : "minutes";
+}
+
+function wordClockParts(date = new Date()) {
+  const hour = date.getHours();
+  const minute = date.getMinutes();
+  const currentHour = WORD_CLOCK_NUMBERS[wordClockHour(hour)];
+  const nextHour = WORD_CLOCK_NUMBERS[wordClockHour(hour + 1)];
+
+  if (minute === 0) {
+    return [
+      { text: currentHour, strong: true },
+      { text: "o'clock" },
+    ];
+  }
+  if (minute === 15) {
+    return [
+      { text: "quarter", strong: true },
+      { text: "past" },
+      { text: currentHour, strong: true },
+    ];
+  }
+  if (minute === 30) {
+    return [
+      { text: "half", strong: true },
+      { text: "past" },
+      { text: currentHour, strong: true },
+    ];
+  }
+  if (minute === 45) {
+    return [
+      { text: "quarter", strong: true },
+      { text: "to" },
+      { text: nextHour, strong: true },
+    ];
+  }
+  if (minute < 30) {
+    return [
+      { text: WORD_CLOCK_NUMBERS[minute], strong: true },
+      { text: wordClockMinuteUnit(minute) },
+      { text: "past" },
+      { text: currentHour, strong: true },
+    ];
+  }
+
+  const minutesToNextHour = 60 - minute;
+  return [
+    { text: WORD_CLOCK_NUMBERS[minutesToNextHour], strong: true },
+    { text: wordClockMinuteUnit(minutesToNextHour) },
+    { text: "to" },
+    { text: nextHour, strong: true },
+  ];
+}
+
+function updateWordClockFooter() {
+  const el = document.getElementById('wordClockFooter');
+  if (!el) return;
+
+  const date = new Date();
+  const wordTime = wordClockParts(date).map(part => {
+    const classes = ['word-clock-word'];
+    if (part.strong) classes.push('word-clock-strong');
+    return `<span class="${classes.join(' ')}">${part.text}</span>`;
+  }).join(' ');
+
+  const digitalTime = date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+  const digitalDate = [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
+
+  el.innerHTML = `
+    <div class="word-clock-text">${wordTime}</div>
+    <div class="digital-clock-text">${digitalDate} ${digitalTime}</div>
+  `;
 }
 
 function escapeHtml(value) {
@@ -1270,8 +1443,14 @@ function buildOverflowChips(hiddenTabs, urlCounts = {}) {
 function renderDomainCard(group) {
   const tabs      = group.tabs || [];
   const tabCount  = tabs.length;
-  const isLanding = group.domain === '__landing-pages__';
   const stableId  = 'domain-' + group.domain.replace(/[^a-z0-9]/g, '-');
+  const isCollapsed = collapsedDomainIds.has(stableId);
+  const groupTitle = group.label || group.domain.replace(/^www\./, '');
+  let groupFaviconHost = '';
+  if (!group.label) groupFaviconHost = group.domain;
+  const groupFaviconUrl = groupFaviconHost
+    ? `https://www.google.com/s2/favicons?domain=${groupFaviconHost}&sz=32`
+    : '';
 
   // Count duplicates (exact URL match)
   const urlCounts = {};
@@ -1280,13 +1459,8 @@ function renderDomainCard(group) {
   const hasDupes   = dupeUrls.length > 0;
   const totalExtras = dupeUrls.reduce((s, [, c]) => s + c - 1, 0);
 
-  const tabBadge = `<span class="open-tabs-badge">
-    ${ICONS.tabs}
-    ${tabCount} tab${tabCount !== 1 ? 's' : ''} open
-  </span>`;
-
   const dupeBadge = hasDupes
-    ? `<span class="open-tabs-badge" style="color:var(--accent-amber);background:rgba(200,113,58,0.08);">
+    ? `<span class="mission-dupe-pill">
         ${totalExtras} duplicate${totalExtras !== 1 ? 's' : ''}
       </span>`
     : '';
@@ -1330,27 +1504,30 @@ function renderDomainCard(group) {
     </div>`;
   }).join('') + (extraCount > 0 ? buildOverflowChips(uniqueTabs.slice(8), urlCounts) : '');
 
-  let actionsHtml = `
-    <button class="action-btn close-tabs" data-action="close-domain-tabs" data-domain-id="${stableId}">
-      ${ICONS.close}
-      Close all ${tabCount} tab${tabCount !== 1 ? 's' : ''}
-    </button>`;
+  let actionsHtml = tabCount > 1 ? `
+    <button class="action-btn close-tabs" data-action="close-domain-tabs" data-domain-id="${stableId}" title="Close all tabs in this group">
+      Close All
+    </button>` : '';
 
   if (hasDupes) {
     const dupeUrlsEncoded = dupeUrls.map(([url]) => encodeURIComponent(url)).join(',');
     actionsHtml += `
       <button class="action-btn" data-action="dedup-keep-one" data-dupe-urls="${dupeUrlsEncoded}">
-        Close ${totalExtras} duplicate${totalExtras !== 1 ? 's' : ''}
+        Close duplicate${totalExtras !== 1 ? 's' : ''}
       </button>`;
   }
 
   return `
-    <div class="mission-card domain-card ${hasDupes ? 'has-amber-bar' : 'has-neutral-bar'}" data-domain-id="${stableId}">
+    <div class="mission-card domain-card ${hasDupes ? 'has-amber-bar' : 'has-neutral-bar'} ${isCollapsed ? 'is-collapsed' : ''}" data-domain-id="${stableId}">
       <div class="status-bar"></div>
       <div class="mission-content">
-        <div class="mission-top">
-          <span class="mission-name">${isLanding ? 'Homepages' : (group.label || friendlyDomain(group.domain))}</span>
-          ${tabBadge}
+        <div class="mission-top" data-action="toggle-domain" data-domain-id="${stableId}" title="${isCollapsed ? 'Expand group' : 'Collapse group'}">
+          <button class="mission-chevron" type="button" data-action="toggle-domain" data-domain-id="${stableId}" aria-expanded="${isCollapsed ? 'false' : 'true'}" title="${isCollapsed ? 'Expand group' : 'Collapse group'}">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 9 3.75 3.75L15.75 9" /></svg>
+          </button>
+          ${groupFaviconUrl ? `<img class="mission-domain-favicon" src="${groupFaviconUrl}" alt="" onerror="this.style.display='none'">` : ''}
+          <span class="mission-name">${groupTitle}</span>
+          <span class="mission-count-pill">${tabCount}</span>
           ${dupeBadge}
         </div>
         <div class="mission-pages">${pageChips}</div>
@@ -1372,36 +1549,36 @@ function renderDomainCard(group) {
  * renderDeferredColumn()
  *
  * Reads saved tabs from chrome.storage.local and renders the right-side
- * "Saved for Later" checklist column. Shows active items as a checklist
- * and completed items in a collapsible archive.
+ * "Saved for Later" checklist column. Archived items stay in storage but
+ * are intentionally not shown in the compact side panel.
  */
 async function renderDeferredColumn() {
   const column         = document.getElementById('deferredColumn');
+  const dashboard      = document.getElementById('dashboardColumns');
   const list           = document.getElementById('deferredList');
   const empty          = document.getElementById('deferredEmpty');
   const countEl        = document.getElementById('deferredCount');
-  const archiveEl      = document.getElementById('deferredArchive');
-  const archiveCountEl = document.getElementById('archiveCount');
-  const archiveList    = document.getElementById('archiveList');
 
   if (!column) return;
 
   try {
-    const { active, archived } = await getSavedTabs();
+    const { active } = await getSavedTabs();
 
     // Hide the entire column if there's nothing to show
-    if (active.length === 0 && archived.length === 0) {
+    if (active.length === 0) {
       column.style.display = 'none';
+      dashboard?.classList.remove('saved-only');
       return;
     }
 
     column.style.display = 'block';
+    dashboard?.classList.toggle('saved-only', domainGroups.length === 0);
 
     // Render active checklist items
     if (active.length > 0) {
       countEl.textContent = `${active.length} item${active.length !== 1 ? 's' : ''}`;
       list.innerHTML = active.map(item => renderDeferredItem(item)).join('');
-      list.style.display = 'block';
+      list.style.display = '';
       empty.style.display = 'none';
     } else {
       list.style.display = 'none';
@@ -1409,18 +1586,10 @@ async function renderDeferredColumn() {
       empty.style.display = 'block';
     }
 
-    // Render archive section
-    if (archived.length > 0) {
-      archiveCountEl.textContent = `(${archived.length})`;
-      archiveList.innerHTML = archived.map(item => renderArchiveItem(item)).join('');
-      archiveEl.style.display = 'block';
-    } else {
-      archiveEl.style.display = 'none';
-    }
-
   } catch (err) {
     console.warn('[tab-x] Could not load saved tabs:', err);
     column.style.display = 'none';
+    dashboard?.classList.remove('saved-only');
   }
 }
 
@@ -1454,22 +1623,6 @@ function renderDeferredItem(item) {
     </div>`;
 }
 
-/**
- * renderArchiveItem(item)
- *
- * Builds HTML for one completed/archived item (simpler: just title + date).
- */
-function renderArchiveItem(item) {
-  const ago = item.completedAt ? timeAgo(item.completedAt) : timeAgo(item.savedAt);
-  return `
-    <div class="archive-item">
-      <a href="${item.url}" target="_blank" rel="noopener" class="archive-item-title" title="${(item.title || '').replace(/"/g, '&quot;')}">
-        ${item.title || item.url}
-      </a>
-      <span class="archive-item-date">${ago}</span>
-    </div>`;
-}
-
 
 /* ----------------------------------------------------------------
    MAIN DASHBOARD RENDERER
@@ -1481,9 +1634,9 @@ function renderArchiveItem(item) {
  * The main render function:
  * 1. Paints Ganzhi clock + solar-term metadata
  * 2. Fetches open tabs via chrome.tabs.query()
- * 3. Groups tabs by domain (with landing pages pulled out to their own group)
+ * 3. Groups tabs by main domain
  * 4. Renders domain cards
- * 5. Updates footer stats
+ * 5. Updates header stats
  * 6. Renders the "Saved for Later" checklist
  */
 async function renderStaticDashboard() {
@@ -1497,42 +1650,9 @@ async function renderStaticDashboard() {
   await fetchOpenTabs();
   const realTabs = getRealTabs();
 
-  // --- Group tabs by domain ---
-  // Landing pages (Gmail inbox, Twitter home, etc.) get their own special group
-  // so they can be closed together without affecting content tabs on the same domain.
-  const LANDING_PAGE_PATTERNS = [
-    { hostname: 'mail.google.com', test: (p, h) =>
-        !h.includes('#inbox/') && !h.includes('#sent/') && !h.includes('#search/') },
-    { hostname: 'x.com',               pathExact: ['/home'] },
-    { hostname: 'www.linkedin.com',    pathExact: ['/'] },
-    { hostname: 'github.com',          pathExact: ['/'] },
-    { hostname: 'www.youtube.com',     pathExact: ['/'] },
-    // Merge personal patterns from config.local.js (if it exists)
-    ...(typeof LOCAL_LANDING_PAGE_PATTERNS !== 'undefined' ? LOCAL_LANDING_PAGE_PATTERNS : []),
-  ];
-
-  function isLandingPage(url) {
-    try {
-      const parsed = new URL(url);
-      return LANDING_PAGE_PATTERNS.some(p => {
-        // Support both exact hostname and suffix matching (for wildcard subdomains)
-        const hostnameMatch = p.hostname
-          ? parsed.hostname === p.hostname
-          : p.hostnameEndsWith
-            ? parsed.hostname.endsWith(p.hostnameEndsWith)
-            : false;
-        if (!hostnameMatch) return false;
-        if (p.test)       return p.test(parsed.pathname, url);
-        if (p.pathPrefix) return parsed.pathname.startsWith(p.pathPrefix);
-        if (p.pathExact)  return p.pathExact.includes(parsed.pathname);
-        return parsed.pathname === '/';
-      });
-    } catch { return false; }
-  }
-
+  // --- Group tabs by main domain ---
   domainGroups = [];
-  const groupMap    = {};
-  const landingTabs = [];
+  const groupMap = {};
 
   // Custom group rules from config.local.js (if any)
   const customGroups = typeof LOCAL_CUSTOM_GROUPS !== 'undefined' ? LOCAL_CUSTOM_GROUPS : [];
@@ -1554,13 +1674,40 @@ async function renderStaticDashboard() {
     } catch { return null; }
   }
 
+  function mainDomainFromParsedUrl(parsed) {
+    const hostname = parsed.hostname.replace(/^www\./, '');
+    if (!hostname) return '';
+    if (hostname === 'localhost') {
+      return parsed.port ? `${hostname}:${parsed.port}` : hostname;
+    }
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) return hostname;
+
+    const parts = hostname.split('.');
+    if (parts.length <= 2) return hostname;
+
+    const twoPartSuffixes = new Set([
+      'co.uk', 'org.uk', 'ac.uk', 'gov.uk',
+      'com.cn', 'net.cn', 'org.cn', 'gov.cn',
+      'com.au', 'net.au', 'org.au',
+      'co.jp', 'ne.jp', 'or.jp',
+      'co.kr', 'or.kr',
+      'com.br', 'com.mx', 'com.tr',
+      'co.nz',
+    ]);
+    const suffix = parts.slice(-2).join('.');
+    return twoPartSuffixes.has(suffix)
+      ? parts.slice(-3).join('.')
+      : parts.slice(-2).join('.');
+  }
+
+  function domainKeyFromTabUrl(url) {
+    if (!url) return '';
+    if (url.startsWith('file://')) return 'local-files';
+    return mainDomainFromParsedUrl(new URL(url));
+  }
+
   for (const tab of realTabs) {
     try {
-      if (isLandingPage(tab.url)) {
-        landingTabs.push(tab);
-        continue;
-      }
-
       // Check custom group rules first (e.g. merge subdomains, split by path)
       const customRule = matchCustomGroup(tab.url);
       if (customRule) {
@@ -1571,11 +1718,7 @@ async function renderStaticDashboard() {
       }
 
       let hostname;
-      if (tab.url && tab.url.startsWith('file://')) {
-        hostname = 'local-files';
-      } else {
-        hostname = new URL(tab.url).hostname;
-      }
+      hostname = domainKeyFromTabUrl(tab.url);
       if (!hostname) continue;
 
       if (!groupMap[hostname]) groupMap[hostname] = { domain: hostname, tabs: [] };
@@ -1585,48 +1728,26 @@ async function renderStaticDashboard() {
     }
   }
 
-  if (landingTabs.length > 0) {
-    groupMap['__landing-pages__'] = { domain: '__landing-pages__', tabs: landingTabs };
-  }
-
-  // Sort: landing pages first, then domains from landing page sites, then by tab count
-  // Collect exact hostnames and suffix patterns for priority sorting
-  const landingHostnames = new Set(LANDING_PAGE_PATTERNS.map(p => p.hostname).filter(Boolean));
-  const landingSuffixes = LANDING_PAGE_PATTERNS.map(p => p.hostnameEndsWith).filter(Boolean);
-  function isLandingDomain(domain) {
-    if (landingHostnames.has(domain)) return true;
-    return landingSuffixes.some(s => domain.endsWith(s));
-  }
+  // Sort domains by tab count, then alphabetically for stable ordering.
   domainGroups = Object.values(groupMap).sort((a, b) => {
-    const aIsLanding = a.domain === '__landing-pages__';
-    const bIsLanding = b.domain === '__landing-pages__';
-    if (aIsLanding !== bIsLanding) return aIsLanding ? -1 : 1;
-
-    const aIsPriority = isLandingDomain(a.domain);
-    const bIsPriority = isLandingDomain(b.domain);
-    if (aIsPriority !== bIsPriority) return aIsPriority ? -1 : 1;
-
-    return b.tabs.length - a.tabs.length;
+    const countDiff = b.tabs.length - a.tabs.length;
+    if (countDiff !== 0) return countDiff;
+    return (a.label || a.domain).localeCompare(b.label || b.domain);
   });
 
   // --- Render domain cards ---
   const openTabsSection      = document.getElementById('openTabsSection');
   const openTabsMissionsEl   = document.getElementById('openTabsMissions');
-  const openTabsSectionCount = document.getElementById('openTabsSectionCount');
   const openTabsSectionTitle = document.getElementById('openTabsSectionTitle');
 
   if (domainGroups.length > 0 && openTabsSection) {
     if (openTabsSectionTitle) openTabsSectionTitle.textContent = 'Open tabs';
-    openTabsSectionCount.innerHTML = `${domainGroups.length} domain${domainGroups.length !== 1 ? 's' : ''} &nbsp;&middot;&nbsp; <button class="action-btn close-tabs" data-action="close-all-open-tabs" style="font-size:11px;padding:3px 10px;">${ICONS.close} Close all ${realTabs.length} tabs</button>`;
+    updateOpenTabsSectionSummary(realTabs.length, domainGroups.length);
     openTabsMissionsEl.innerHTML = domainGroups.map(g => renderDomainCard(g)).join('');
     openTabsSection.style.display = 'block';
   } else if (openTabsSection) {
     openTabsSection.style.display = 'none';
   }
-
-  // --- Footer stats ---
-  const statTabs = document.getElementById('statTabs');
-  if (statTabs) statTabs.textContent = openTabs.length;
 
   // --- Check for duplicate Tab X tabs ---
   checkTabOutDupes();
@@ -1703,6 +1824,33 @@ document.addEventListener('click', async (e) => {
 
   const card = actionEl.closest('.mission-card');
 
+  // ---- Collapse / expand a domain group ----
+  if (action === 'toggle-domain') {
+    e.stopPropagation();
+    const domainId = actionEl.dataset.domainId;
+    if (!domainId || !card) return;
+
+    const shouldCollapse = !card.classList.contains('is-collapsed');
+    card.classList.toggle('is-collapsed', shouldCollapse);
+
+    const title = shouldCollapse ? 'Expand group' : 'Collapse group';
+    actionEl.title = title;
+    const topRow = card.querySelector('.mission-top');
+    if (topRow) topRow.title = title;
+    const toggleButton = card.querySelector('.mission-chevron');
+    if (toggleButton) {
+      toggleButton.setAttribute('aria-expanded', shouldCollapse ? 'false' : 'true');
+      toggleButton.title = title;
+    }
+
+    if (shouldCollapse) {
+      collapsedDomainIds.add(domainId);
+    } else {
+      collapsedDomainIds.delete(domainId);
+    }
+    return;
+  }
+
   // ---- Expand overflow chips ("+N more") ----
   if (action === 'expand-chips') {
     const overflowContainer = actionEl.parentElement.querySelector('.page-chips-overflow');
@@ -1736,28 +1884,10 @@ document.addEventListener('click', async (e) => {
 
     // Animate the chip row out
     const chip = actionEl.closest('.page-chip');
-    if (chip) {
-      const rect = chip.getBoundingClientRect();
-      shootConfetti(rect.left + rect.width / 2, rect.top + rect.height / 2);
-      chip.style.transition = 'opacity 0.2s, transform 0.2s';
-      chip.style.opacity    = '0';
-      chip.style.transform  = 'scale(0.8)';
-      setTimeout(() => {
-        chip.remove();
-        // If the card now has no tabs, remove it too
-        const parentCard = document.querySelector('.mission-card:has(.mission-pages:empty)');
-        if (parentCard) animateCardOut(parentCard);
-        document.querySelectorAll('.mission-card').forEach(c => {
-          if (c.querySelectorAll('.page-chip[data-action="focus-tab"]').length === 0) {
-            animateCardOut(c);
-          }
-        });
-      }, 200);
-    }
-
-    // Update footer
-    const statTabs = document.getElementById('statTabs');
-    if (statTabs) statTabs.textContent = openTabs.length;
+    animateChipOut(chip, () => {
+      refreshDomainCardAfterChipRemoval(card);
+      updateOpenTabsSectionSummary(getRealTabs().length, document.querySelectorAll('#openTabsMissions .mission-card:not(.closing)').length);
+    });
 
     showToast('Tab closed');
     return;
@@ -1787,12 +1917,10 @@ document.addEventListener('click', async (e) => {
 
     // Animate chip out
     const chip = actionEl.closest('.page-chip');
-    if (chip) {
-      chip.style.transition = 'opacity 0.2s, transform 0.2s';
-      chip.style.opacity    = '0';
-      chip.style.transform  = 'scale(0.8)';
-      setTimeout(() => chip.remove(), 200);
-    }
+    animateChipOut(chip, () => {
+      refreshDomainCardAfterChipRemoval(card);
+      updateOpenTabsSectionSummary(getRealTabs().length, document.querySelectorAll('#openTabsMissions .mission-card:not(.closing)').length);
+    });
 
     showToast('Saved for later');
     await renderDeferredColumn();
@@ -1848,9 +1976,9 @@ document.addEventListener('click', async (e) => {
     if (!group) return;
 
     const urls      = group.tabs.map(t => t.url);
-    // Landing pages and custom groups (whose domain key isn't a real hostname)
-    // must use exact URL matching to avoid closing unrelated tabs
-    const useExact  = group.domain === '__landing-pages__' || !!group.label;
+    // Custom groups whose domain key isn't a real hostname must use exact URL
+    // matching to avoid closing unrelated tabs.
+    const useExact = !!group.label;
 
     if (useExact) {
       await closeTabsExact(urls);
@@ -1867,11 +1995,10 @@ document.addEventListener('click', async (e) => {
     const idx = domainGroups.indexOf(group);
     if (idx !== -1) domainGroups.splice(idx, 1);
 
-    const groupLabel = group.domain === '__landing-pages__' ? 'Homepages' : (group.label || friendlyDomain(group.domain));
+    const groupLabel = group.label || friendlyDomain(group.domain);
     showToast(`Closed ${urls.length} tab${urls.length !== 1 ? 's' : ''} from ${groupLabel}`);
 
-    const statTabs = document.getElementById('statTabs');
-    if (statTabs) statTabs.textContent = openTabs.length;
+    updateOpenTabsSectionSummary(getRealTabs().length, domainGroups.length);
     return;
   }
 
@@ -1918,6 +2045,8 @@ document.addEventListener('click', async (e) => {
       .map(t => t.url);
     await closeTabsByUrls(allUrls);
     playCloseSound();
+    domainGroups = [];
+    updateOpenTabsSectionSummary(getRealTabs().length, 0);
 
     document.querySelectorAll('#openTabsMissions .mission-card').forEach(c => {
       shootConfetti(
@@ -1997,51 +2126,10 @@ document.addEventListener('drop', async (e) => {
   }
 });
 
-// ---- Archive toggle — expand/collapse the archive section ----
-document.addEventListener('click', (e) => {
-  const toggle = e.target.closest('#archiveToggle');
-  if (!toggle) return;
-
-  toggle.classList.toggle('open');
-  const body = document.getElementById('archiveBody');
-  if (body) {
-    body.style.display = body.style.display === 'none' ? 'block' : 'none';
-  }
-});
-
-// ---- Archive search — filter archived items as user types ----
-document.addEventListener('input', async (e) => {
-  if (e.target.id !== 'archiveSearch') return;
-
-  const q = e.target.value.trim().toLowerCase();
-  const archiveList = document.getElementById('archiveList');
-  if (!archiveList) return;
-
-  try {
-    const { archived } = await getSavedTabs();
-
-    if (q.length < 2) {
-      // Show all archived items
-      archiveList.innerHTML = archived.map(item => renderArchiveItem(item)).join('');
-      return;
-    }
-
-    // Filter by title or URL containing the query string
-    const results = archived.filter(item =>
-      (item.title || '').toLowerCase().includes(q) ||
-      (item.url  || '').toLowerCase().includes(q)
-    );
-
-    archiveList.innerHTML = results.map(item => renderArchiveItem(item)).join('')
-      || '<div style="font-size:12px;color:var(--muted);padding:8px 0">No results</div>';
-  } catch (err) {
-    console.warn('[tab-x] Archive search failed:', err);
-  }
-});
-
-
 /* ----------------------------------------------------------------
    INITIALIZE
    ---------------------------------------------------------------- */
 renderDashboard();
+updateWordClockFooter();
 setInterval(updateGanzhiHeader, 60000);
+setInterval(updateWordClockFooter, 1000);
