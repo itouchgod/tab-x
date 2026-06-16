@@ -1122,6 +1122,13 @@ header {
   color: var(--accent-blue);
 }
 
+.deferred-favicon {
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  vertical-align: -2px;
+}
+
 .deferred-meta {
   display: flex;
   gap: 8px;

@@ -27,6 +27,13 @@
 let openTabs = [];
 const collapsedDomainIds = new Set();
 
+document.addEventListener('error', event => {
+  const target = event.target;
+  if (target instanceof HTMLImageElement && target.dataset.hideOnError === 'true') {
+    target.hidden = true;
+  }
+}, true);
+
 /**
  * fetchOpenTabs()
  *
@@ -1125,7 +1132,7 @@ async function renderFavoritesShelf() {
 
       return `
         <div class="favorite-link favorite-item" role="link" tabindex="0" data-action="open-favorite" data-url="${safeUrl}" data-source="${safeSource}" title="${safeTitle}">
-          ${faviconUrl ? `<img class="favorite-favicon" src="${faviconUrl}" alt="" onerror="this.style.display='none'">` : ''}
+          ${faviconUrl ? `<img class="favorite-favicon" src="${faviconUrl}" alt="" data-hide-on-error="true">` : ''}
           <span class="favorite-title">${safeTitle}</span>
           <button class="favorite-remove" type="button" data-action="remove-favorite" data-url="${safeUrl}" data-source="${safeSource}" title="Remove shortcut">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
@@ -1409,7 +1416,7 @@ function buildOverflowChips(hiddenTabs, urlCounts = {}) {
       try { domain = new URL(tab.url).hostname; } catch {}
       const faviconUrl = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=16` : '';
     return `<div class="page-chip clickable${chipClass}" draggable="true" data-action="focus-tab" data-tab-url="${safeUrl}" data-tab-title="${safeTitle}" title="${safeTitle}">
-      ${faviconUrl ? `<img class="chip-favicon" src="${faviconUrl}" alt="" onerror="this.style.display='none'">` : ''}
+      ${faviconUrl ? `<img class="chip-favicon" src="${faviconUrl}" alt="" data-hide-on-error="true">` : ''}
       <span class="chip-text">${label}</span>${dupeTag}
       <div class="chip-actions">
         <button class="chip-action chip-save" data-action="defer-single-tab" data-tab-url="${safeUrl}" data-tab-title="${safeTitle}" title="Save for later">
@@ -1491,7 +1498,7 @@ function renderDomainCard(group) {
     try { domain = new URL(tab.url).hostname; } catch {}
     const faviconUrl = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=16` : '';
     return `<div class="page-chip clickable${chipClass}" draggable="true" data-action="focus-tab" data-tab-url="${safeUrl}" data-tab-title="${safeTitle}" title="${safeTitle}">
-      ${faviconUrl ? `<img class="chip-favicon" src="${faviconUrl}" alt="" onerror="this.style.display='none'">` : ''}
+      ${faviconUrl ? `<img class="chip-favicon" src="${faviconUrl}" alt="" data-hide-on-error="true">` : ''}
       <span class="chip-text">${label}</span>${dupeTag}
       <div class="chip-actions">
         <button class="chip-action chip-save" data-action="defer-single-tab" data-tab-url="${safeUrl}" data-tab-title="${safeTitle}" title="Save for later">
@@ -1525,7 +1532,7 @@ function renderDomainCard(group) {
           <button class="mission-chevron" type="button" data-action="toggle-domain" data-domain-id="${stableId}" aria-expanded="${isCollapsed ? 'false' : 'true'}" title="${isCollapsed ? 'Expand group' : 'Collapse group'}">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 9 3.75 3.75L15.75 9" /></svg>
           </button>
-          ${groupFaviconUrl ? `<img class="mission-domain-favicon" src="${groupFaviconUrl}" alt="" onerror="this.style.display='none'">` : ''}
+          ${groupFaviconUrl ? `<img class="mission-domain-favicon" src="${groupFaviconUrl}" alt="" data-hide-on-error="true">` : ''}
           <span class="mission-name">${groupTitle}</span>
           <span class="mission-count-pill">${tabCount}</span>
           ${dupeBadge}
@@ -1610,7 +1617,7 @@ function renderDeferredItem(item) {
       <input type="checkbox" class="deferred-checkbox" data-action="check-deferred" data-deferred-id="${item.id}">
       <div class="deferred-info">
         <a href="${item.url}" target="_blank" rel="noopener" class="deferred-title" title="${(item.title || '').replace(/"/g, '&quot;')}">
-          <img src="${faviconUrl}" alt="" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px" onerror="this.style.display='none'">${item.title || item.url}
+          <img class="deferred-favicon" src="${faviconUrl}" alt="" data-hide-on-error="true">${item.title || item.url}
         </a>
         <div class="deferred-meta">
           <span>${domain}</span>
