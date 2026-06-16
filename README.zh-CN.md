@@ -95,6 +95,7 @@ cd tab-x
 | 搜索 | `chrome.search`，并带有 URL 回退逻辑 |
 | Top sites | `chrome.topSites` |
 | 快捷入口历史回退 | `chrome.history` |
+| 网站图标 | `tab.favIconUrl`，并用 Chrome 扩展 `/_favicon/` 兜底 |
 | 稍后再看 | `chrome.storage.local` key `deferred` |
 | 手动快捷入口 | `chrome.storage.local` key `favoriteLinks` |
 | 隐藏的自动快捷入口 | `chrome.storage.local` key `hiddenTopSiteUrls` |

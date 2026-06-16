@@ -97,6 +97,7 @@ If you already loaded Tab X before, click **Reload** on the extension card after
 | Search | `chrome.search`, with URL fallback |
 | Top sites | `chrome.topSites` |
 | History fallback for shortcuts | `chrome.history` |
+| Site icons | `tab.favIconUrl`, with Chrome extension `/_favicon/` fallback |
 | Saved for later | `chrome.storage.local` key `deferred` |
 | Manual shortcuts | `chrome.storage.local` key `favoriteLinks` |
 | Hidden automatic shortcuts | `chrome.storage.local` key `hiddenTopSiteUrls` |
