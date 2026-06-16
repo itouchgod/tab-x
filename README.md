@@ -1,91 +1,134 @@
 # Tab X
 
-**Keep tabs on your tabs.**
+**A calm Chrome new tab dashboard for tabs, shortcuts, and time.**
 
-Tab X is a Chrome extension that replaces your new tab page with a dashboard of everything you have open. Tabs are grouped by domain, with homepages (Gmail, X, LinkedIn, etc.) pulled into their own group. Close tabs with a satisfying swoosh + confetti.
+Tab X replaces Chrome's new tab page with a local, Apple-inspired dashboard. It shows the current Ganzhi time on the left, a word clock plus open-tab count on the right, icon-style access to top sites, and a clean domain-grouped view of every tab you currently have open.
 
-No server. No account. No external API calls. Just a Chrome extension.
+No server. No account. No build step. Everything runs inside the Chrome extension.
 
 ---
 
-## Install with a coding agent
+## Current Layout
 
-Send your coding agent (Claude Code, Codex, etc.) this repo and say **"install this"**:
+```text
+Top header
+  Left:  Ganzhi clock (year/month/day/hour) + solar-term metadata
+  Right: English word clock + open tab count
 
+Start area
+  Centered search box
+  Icon-style Top sites shortcuts
+
+Main dashboard
+  Left:  Open tabs grouped by main domain in a compact light grouped list
+  Right: Saved for later checklist in a compact side panel, active items only
 ```
-<your-tab-x-repo-url>
-```
 
-The agent will walk you through it. Takes about 1 minute.
+There is no extension-owned bottom bar. The bottom area stays clean so Chrome's own UI can sit below the extension page.
 
 ---
 
 ## Features
 
-- **See all your tabs at a glance** on a clean grid, grouped by domain
-- **Homepages group** pulls Gmail inbox, X home, YouTube, LinkedIn, GitHub homepages into one card
-- **Close tabs with style** with swoosh sound + confetti burst
-- **Duplicate detection** flags when you have the same page open twice, with one-click cleanup
-- **Click any tab to jump to it** across windows, no new tab opened
-- **Save for later** bookmark tabs to a checklist before closing them
-- **Localhost grouping** shows port numbers next to each tab so you can tell your vibe coding projects apart
-- **Expandable groups** show the first 8 tabs with a clickable "+N more"
-- **100% local** your data never leaves your machine
-- **Pure Chrome extension** no server, no Node.js, no npm, no setup beyond loading the extension
+- **Ganzhi clock header** shows current year, month, day, and hour in heavenly stems and earthly branches, with solar-term metadata underneath.
+- **Word clock status** in the top-right renders the current time in natural English, such as `three minutes to twelve`.
+- **Open tab counter** sits beside the word clock and updates as tabs are opened or closed.
+- **Search box** behaves like a new-tab search/address field: URLs open directly, search terms use Chrome's default search provider when available.
+- **Apple-inspired layout** uses system fonts, cool white surfaces, subtle shadows, icon-style shortcuts, and no custom bottom bar.
+- **Top sites shortcuts** use Chrome `topSites`, with a history-based fallback when `topSites` is empty.
+- **Manual shortcuts** can be added with the `+` button and are stored locally.
+- **Drag tabs into Top sites** by dragging any open-tab row into the Top sites area.
+- **Remove shortcuts** with the small `x`: manual shortcuts are deleted; automatic top/history shortcuts are hidden in Tab X.
+- **Open tabs grouped by main domain** in a compact grouped-list layout with indented child rows and direct row-level `X` close controls.
+- **Homepages group** pulls Gmail inbox, X home, YouTube, LinkedIn, and GitHub homepages into one cleanup card.
+- **Duplicate detection** flags repeated URLs and can close duplicates while keeping one copy.
+- **Click any tab title** to jump directly to that tab, even across Chrome windows.
+- **Close tabs with feedback** using a swoosh sound and confetti burst.
+- **Save for later** stores a tab in a local checklist before closing it; the side panel only shows active saved items.
+- **Localhost grouping** includes port numbers so local dev projects are easier to tell apart.
+- **Expandable groups** show the first 8 tabs, with a `+N more` control for larger groups.
+- **100% local data storage** using Chrome extension APIs and `chrome.storage.local`.
 
 ---
 
 ## Manual Setup
 
-**1. Clone the repo**
+Clone the repo if needed:
 
 ```bash
-git clone <your-tab-x-repo-url>
+git clone git@github.com:itouchgod/tab-x.git
+cd tab-x
 ```
 
-**2. Load the Chrome extension**
+1. Open Chrome and go to `chrome://extensions`.
+2. Enable **Developer mode** in the top-right corner.
+3. Click **Load unpacked**.
+4. Select the `extension/` folder from this repo.
+5. Open a new tab.
 
-1. Open Chrome and go to `chrome://extensions`
-2. Enable **Developer mode** (top-right toggle)
-3. Click **Load unpacked**
-4. Navigate to the `extension/` folder inside the cloned repo and select it
-
-**3. Open a new tab**
-
-You'll see Tab X.
+If you already loaded Tab X before, click **Reload** on the extension card after making changes.
 
 ---
 
-## How it works
+## How To Use
 
-```
-You open a new tab
-  -> Tab X shows your open tabs grouped by domain
-  -> Homepages (Gmail, X, etc.) get their own group at the top
-  -> Click any tab title to jump to it
-  -> Close groups you're done with (swoosh + confetti)
-  -> Save tabs for later before closing them
-```
-
-Everything runs inside the Chrome extension. No external server, no API calls, no data sent anywhere. Saved tabs are stored in `chrome.storage.local`.
+- Type in the search box to search or open a URL.
+- Click a Top sites shortcut to open it in the current tab.
+- Click `+` in Top sites to add a custom shortcut.
+- Drag a tab row from **Open tabs** into **Top sites** to save it as a shortcut.
+- Hover a Top sites shortcut and click `x` to remove or hide it.
+- Click an open tab row to switch to that tab.
+- Click the bookmark icon on a tab row to save it for later, then close it.
+- Click the `x` on a tab row to close only that tab.
+- Click **Close All** on a multi-tab domain group to close that group.
+- Click **Close duplicates** when a duplicate badge appears.
 
 ---
 
-## Tech stack
+## Data And Permissions
 
-| What | How |
-|------|-----|
-| Extension | Chrome Manifest V3 |
-| Storage | chrome.storage.local |
-| Sound | Web Audio API (synthesized, no files) |
-| Animations | CSS transitions + JS confetti particles |
+| Area | API / Storage |
+| --- | --- |
+| New tab replacement | Chrome Manifest V3 `chrome_url_overrides.newtab` |
+| Open tabs and focusing tabs | `chrome.tabs`, `chrome.windows` |
+| Open tab count badge | `chrome.action` in the service worker |
+| Search | `chrome.search`, with URL fallback |
+| Top sites | `chrome.topSites` |
+| History fallback for shortcuts | `chrome.history` |
+| Saved for later | `chrome.storage.local` key `deferred` |
+| Manual shortcuts | `chrome.storage.local` key `favoriteLinks` |
+| Hidden automatic shortcuts | `chrome.storage.local` key `hiddenTopSiteUrls` |
+| Sound | Web Audio API |
+| Confetti | DOM/CSS animation |
+
+Tab X does not run a server and does not require Node.js, npm, or a database.
+
+---
+
+## Project Structure
+
+```text
+extension/
+  manifest.json      Chrome extension manifest
+  index.html         New tab page structure
+  style.css          Dashboard styling
+  app.js             Dashboard logic and UI interactions
+  background.js      Toolbar badge count service worker
+  icons/             Extension icons
+```
+
+---
+
+## Development Notes
+
+- `extension/config.local.js` is intentionally ignored and can be used for personal landing-page or grouping rules.
+- After editing files, reload the unpacked extension from `chrome://extensions`.
+- If permissions change, Chrome may ask for confirmation when the extension is reloaded.
 
 ---
 
 ## License
 
 MIT
-
----
 
 Built by L

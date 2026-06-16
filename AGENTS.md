@@ -1,96 +1,119 @@
-# AGENTS.md -- Tab X: Setup & Onboarding Guide for Coding Agents
+# AGENTS.md -- Tab X Setup & Onboarding Guide for Coding Agents
 
-You're installing **Tab X** for the user. Your job is not just to set it up -- it's to get them excited about using it.
+You are installing **Tab X** for the user. Your job is not just to set it up -- it is to help them understand why this new tab page is useful.
 
 ---
 
 ## Step 0 -- Introduce the product
 
-Before doing anything technical, tell the user what they're about to get:
+Before doing anything technical, tell the user what they are about to get:
 
-> **Tab X** replaces your new tab page with a clean dashboard of everything you have open, grouped by domain.
+> **Tab X** replaces your Chrome new tab page with a quiet Apple-inspired dashboard for time, top sites, and open tabs.
 >
-> Here's what makes it great:
-> - **See all your open tabs at a glance** grouped by domain on a grid
-> - **Homepages group** pulls Gmail, X, LinkedIn, YouTube, GitHub homepages into one card for easy cleanup
-> - **Close tabs with style** satisfying swoosh sound + confetti burst
-> - **Duplicate detection** flags when you have the same page open twice
-> - **Click any tab title to jump to it** even across different Chrome windows
-> - **Save for later** bookmark individual tabs to a checklist before closing them
-> - **100% local** no server, no accounts, no data sent anywhere
+> What makes it useful:
+> - **Ganzhi clock** in the top-left with current year/month/day/hour and solar-term metadata
+> - **Word clock + open-tab count** in the top-right
+> - **Centered search box** for URLs and Chrome default search
+> - **Top sites** from Chrome's common sites, with history fallback
+> - **Custom shortcuts** added with `+`, removable with `x`
+> - **Drag any open tab into Top sites** to save it as a shortcut
+> - **Open tabs grouped by main domain** in a compact light grouped list
+> - **Homepages group** for Gmail, X, LinkedIn, YouTube, and GitHub homepages
+> - **Duplicate detection** with one-click cleanup
+> - **Save for later** checklist stored locally
+> - **100% local**: no server, no account, no external database
 >
-> It's just a Chrome extension. Setup takes about 1 minute.
+> It is just a Chrome extension. Setup takes about 1 minute.
 
 ---
 
-## Step 1 -- Clone the repo
+## Step 1 -- Clone Or Locate The Repo
+
+If cloning:
 
 ```bash
-git clone <your-tab-x-repo-url>
+git clone git@github.com:itouchgod/tab-x.git
 cd tab-x
 ```
 
+If the repo already exists, use the existing project folder and load its `extension/` directory.
+
 ---
 
-## Step 2 -- Install the Chrome extension
+## Step 2 -- Install The Chrome Extension
 
 This is the one step that requires manual action from the user. Make it as easy as possible.
 
 **First**, print the full path to the `extension/` folder:
+
 ```bash
 echo "Extension folder: $(cd extension && pwd)"
 ```
 
 **Then**, copy the `extension/` folder path to their clipboard:
+
 - macOS: `cd extension && pwd | pbcopy && echo "Path copied to clipboard"`
 - Linux: `cd extension && pwd | xclip -selection clipboard 2>/dev/null || echo "Path: $(pwd)"`
 - Windows: `cd extension && echo %CD% | clip`
 
 **Then**, open the extensions page:
+
 ```bash
-open "chrome://extensions"
+open -a "Google Chrome" "chrome://extensions"
 ```
 
-**Then**, walk the user through it step by step:
+Walk the user through it:
 
 > I've copied the extension folder path to your clipboard. Now:
 >
-> 1. You should see Chrome's extensions page. In the **top-right corner**, toggle on **Developer mode** (it's a switch).
-> 2. Once Developer mode is on, you'll see a button called **"Load unpacked"** appear in the top-left. Click it.
-> 3. A file picker will open. **Press Cmd+Shift+G** (Mac) or **Ctrl+L** (Windows/Linux) to open the "Go to folder" bar, then **paste** the path I copied (Cmd+V / Ctrl+V) and press Enter.
-> 4. Click **"Select"** or **"Open"** and the extension will install.
+> 1. Open Chrome's extensions page.
+> 2. Toggle on **Developer mode** in the top-right.
+> 3. Click **Load unpacked**.
+> 4. Press **Cmd+Shift+G** on Mac, or use the location bar in the file picker.
+> 5. Paste the extension folder path and press Enter.
+> 6. Click **Select** or **Open**.
 >
-> You should see "Tab X" appear in your extensions list.
+> You should see **Tab X** in the extensions list.
 
-**Also**, open the file browser directly to the extension folder as a fallback:
+Also open the folder as a fallback:
+
 - macOS: `open extension/`
 - Linux: `xdg-open extension/`
 - Windows: `explorer extension\\`
 
 ---
 
-## Step 3 -- Show them around
+## Step 3 -- Show Them Around
 
 Once the extension is loaded:
 
-> You're all set! Open a **new tab** and you'll see Tab X.
+> Open a new tab and you will see Tab X.
 >
-> Here's how it works:
-> 1. **Your open tabs are grouped by domain** in a grid layout.
-> 2. **Homepages** (Gmail inbox, X home, YouTube, etc.) are in their own group at the top.
-> 3. **Click any tab title** to jump directly to that tab.
-> 4. **Click the X** next to any tab to close just that one (with swoosh + confetti).
-> 5. **Click "Close all N tabs"** on a group to close the whole thing.
-> 6. **Duplicate tabs** are flagged with an amber "(2x)" badge. Click "Close duplicates" to keep one copy.
-> 7. **Save a tab for later** by clicking the bookmark icon before closing it. Saved tabs appear in the sidebar.
+> Layout:
+> 1. Top-left: Ganzhi clock and solar-term line.
+> 2. Top-right: word clock and open tab count.
+> 3. Center: search box, then icon-style Top sites.
+> 4. Main area: open tabs grouped by main domain in a compact light grouped list.
+> 5. Right side: Saved for later checklist in a compact side panel, active items only.
 >
-> That's it! No server to run, no config files. Everything works right away.
+> Key actions:
+> - Search or open URLs from the search box.
+> - Click a Top sites shortcut to open it.
+> - Click `+` to add a custom shortcut.
+> - Drag a tab from Open tabs into Top sites to save it as a shortcut.
+> - Hover a shortcut and click `x` to remove or hide it.
+> - Click a tab title to jump to it.
+> - Click a tab row's bookmark icon to save it for later.
+> - Click a tab row's `x` to close it.
+> - Use Close duplicates to clean repeated tabs.
 
 ---
 
 ## Key Facts
 
-- Tab X is a pure Chrome extension. No server, no Node.js, no npm.
-- Saved tabs are stored in `chrome.storage.local` (persists across sessions).
-- 100% local. No data is sent to any external service.
-- To update: `cd tab-x && git pull`, then reload the extension in `chrome://extensions`.
+- Tab X is a pure Chrome Manifest V3 extension.
+- No server, no Node.js runtime, no npm install, no database.
+- Saved tabs and custom shortcuts are stored in `chrome.storage.local`.
+- Chrome top sites come from `chrome.topSites`.
+- If `chrome.topSites` is empty, Tab X uses `chrome.history` as a fallback.
+- To update after code changes, reload the extension in `chrome://extensions`.
