@@ -472,14 +472,16 @@ function refreshDomainCardAfterChipRemoval(card) {
   }
 }
 
-function animateChipOut(chip, afterRemove) {
+function animateChipOut(chip, afterRemove, options = {}) {
   if (!chip) {
     afterRemove?.();
     return;
   }
 
-  const rect = chip.getBoundingClientRect();
-  shootConfetti(rect.right - 38, rect.top + rect.height / 2);
+  if (!options.skipConfetti) {
+    const rect = chip.getBoundingClientRect();
+    shootConfetti(rect.right - 38, rect.top + rect.height / 2);
+  }
   chip.classList.add('closing-tab');
 
   setTimeout(() => {
@@ -1975,10 +1977,11 @@ document.addEventListener('click', async (e) => {
 
     // Animate the chip row out
     const chip = actionEl.closest('.page-chip');
+    const isLastChip = card?.querySelectorAll('.page-chip[data-action="focus-tab"]:not(.closing-tab)').length === 1;
     animateChipOut(chip, () => {
       refreshDomainCardAfterChipRemoval(card);
       updateOpenTabsSectionSummary(getRealTabs().length, document.querySelectorAll('#openTabsMissions .mission-card:not(.closing)').length);
-    });
+    }, { skipConfetti: isLastChip });
 
     showToast('Tab closed');
     return;
@@ -2010,10 +2013,11 @@ document.addEventListener('click', async (e) => {
 
     // Animate chip out
     const chip = actionEl.closest('.page-chip');
+    const isLastChip = card?.querySelectorAll('.page-chip[data-action="focus-tab"]:not(.closing-tab)').length === 1;
     animateChipOut(chip, () => {
       refreshDomainCardAfterChipRemoval(card);
       updateOpenTabsSectionSummary(getRealTabs().length, document.querySelectorAll('#openTabsMissions .mission-card:not(.closing)').length);
-    });
+    }, { skipConfetti: isLastChip });
 
     showToast('Saved for later');
     await renderDeferredColumn();
