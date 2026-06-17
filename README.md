@@ -42,11 +42,12 @@ There is no extension-owned bottom bar. The bottom area stays clean so Chrome's 
 - **Drag tabs into Top sites** by dragging any open-tab row into the Top sites area.
 - **Remove shortcuts** with the small `x`: manual shortcuts are deleted; automatic top/history shortcuts are hidden in Tab X.
 - **Open tabs grouped by main domain** in a compact grouped-list layout with indented child rows and direct row-level `X` close controls.
+- **Open tab sorting** can order groups by most tabs, domain name, or recent activity.
 - **Homepages group** pulls Gmail inbox, X home, YouTube, LinkedIn, and GitHub homepages into one cleanup card.
 - **Duplicate detection** flags repeated URLs and can close duplicates while keeping one copy.
 - **Click any tab title** to jump directly to that tab, even across Chrome windows.
 - **Close tabs with feedback** using a swoosh sound and confetti burst.
-- **Save for later** stores a tab in a local checklist before closing it; the side panel only shows active saved items.
+- **Save for later** stores a tab in a local checklist before closing it; checked items move to an Archived section where they can be deleted.
 - **Localhost grouping** includes port numbers so local dev projects are easier to tell apart.
 - **Expandable groups** show the first 8 tabs, with a `+N more` control for larger groups.
 - **100% local data storage** using Chrome extension APIs and `chrome.storage.local`.
@@ -75,12 +76,14 @@ If you already loaded Tab X before, click **Reload** on the extension card after
 ## How To Use
 
 - Type in the search box to search or open a URL.
+- Use the Open tabs sort menu to switch between most tabs, domain A-Z, and recently active.
 - Click a Top sites shortcut to open it in the current tab.
 - Click `+` in Top sites to add a custom shortcut.
 - Drag a tab row from **Open tabs** into **Top sites** to save it as a shortcut.
 - Hover a Top sites shortcut and click `x` to remove or hide it.
 - Click an open tab row to switch to that tab.
 - Click the bookmark icon on a tab row to save it for later, then close it.
+- Check a saved item to archive it, or delete archived items when you no longer need the record.
 - Click the `x` on a tab row to close only that tab.
 - Click **Close All** on a multi-tab domain group to close that group.
 - Click **Close duplicates** when a duplicate badge appears.
@@ -102,6 +105,7 @@ If you already loaded Tab X before, click **Reload** on the extension card after
 | Saved for later | `chrome.storage.local` key `deferred` |
 | Manual shortcuts | `chrome.storage.local` key `favoriteLinks` |
 | Hidden automatic shortcuts | `chrome.storage.local` key `hiddenTopSiteUrls` |
+| Open tabs sort preference | `chrome.storage.local` key `openTabsSortMode` |
 | Sound | Web Audio API |
 | Confetti | DOM/CSS animation |
 

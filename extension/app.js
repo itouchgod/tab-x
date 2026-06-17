@@ -26,6 +26,7 @@
 // All open tabs — populated by fetchOpenTabs()
 let openTabs = [];
 const collapsedDomainIds = new Set();
+let openTabsSortMode = 'count-desc';
 
 document.addEventListener('error', event => {
   const target = event.target;
@@ -61,6 +62,7 @@ async function fetchOpenTabs() {
       favIconUrl: t.favIconUrl,
       windowId: t.windowId,
       active:   t.active,
+      lastAccessed: t.lastAccessed || 0,
       // Flag Tab X's own pages so we can detect duplicate new tabs
       isTabOut: t.url === newtabUrl || t.url === 'chrome://newtab/',
     }));
@@ -301,6 +303,13 @@ async function dismissSavedTab(id) {
   }
 }
 
+async function deleteSavedTab(id) {
+  const { deferred = [] } = await chrome.storage.local.get('deferred');
+  await chrome.storage.local.set({
+    deferred: deferred.filter(t => t.id !== id),
+  });
+}
+
 
 /* ----------------------------------------------------------------
    UI HELPERS
@@ -513,6 +522,25 @@ function updateOpenTabsSectionSummary(tabCount, domainCount) {
     : '';
 
   countEl.innerHTML = `${tabLabel} &nbsp;&middot;&nbsp; ${domainLabel}${closeButton}`;
+}
+
+function sortDomainGroups(groups, mode) {
+  return [...groups].sort((a, b) => {
+    if (mode === 'name-asc') {
+      return (a.label || a.domain).localeCompare(b.label || b.domain);
+    }
+
+    if (mode === 'recent-desc') {
+      const newestA = Math.max(...a.tabs.map(tab => tab.lastAccessed || 0));
+      const newestB = Math.max(...b.tabs.map(tab => tab.lastAccessed || 0));
+      if (newestA !== newestB) return newestB - newestA;
+      return (a.label || a.domain).localeCompare(b.label || b.domain);
+    }
+
+    const countDiff = b.tabs.length - a.tabs.length;
+    if (countDiff !== 0) return countDiff;
+    return (a.label || a.domain).localeCompare(b.label || b.domain);
+  });
 }
 
 /**
@@ -1647,14 +1675,19 @@ async function renderDeferredColumn() {
   const list           = document.getElementById('deferredList');
   const empty          = document.getElementById('deferredEmpty');
   const countEl        = document.getElementById('deferredCount');
+  const archive        = document.getElementById('deferredArchive');
+  const archiveList    = document.getElementById('deferredArchiveList');
+  const archiveCountEl = document.getElementById('deferredArchiveCount');
 
   if (!column) return;
 
   try {
-    const { active } = await getSavedTabs();
+    const { active, archived } = await getSavedTabs();
+    const hasActive = active.length > 0;
+    const hasArchived = archived.length > 0;
 
     // Hide the entire column if there's nothing to show
-    if (active.length === 0) {
+    if (!hasActive && !hasArchived) {
       column.style.display = 'none';
       dashboard?.classList.remove('saved-only');
       return;
@@ -1664,15 +1697,29 @@ async function renderDeferredColumn() {
     dashboard?.classList.toggle('saved-only', domainGroups.length === 0);
 
     // Render active checklist items
-    if (active.length > 0) {
+    if (hasActive) {
       countEl.textContent = `${active.length} item${active.length !== 1 ? 's' : ''}`;
-      list.innerHTML = active.map(item => renderDeferredItem(item)).join('');
+      list.innerHTML = active.map(item => renderDeferredItem(item, 'active')).join('');
       list.style.display = '';
       empty.style.display = 'none';
     } else {
       list.style.display = 'none';
       countEl.textContent = '';
       empty.style.display = 'block';
+    }
+
+    if (archive && archiveList) {
+      if (hasArchived) {
+        archive.style.display = 'block';
+        archiveList.innerHTML = archived.map(item => renderDeferredItem(item, 'archived')).join('');
+        if (archiveCountEl) {
+          archiveCountEl.textContent = `${archived.length} item${archived.length !== 1 ? 's' : ''}`;
+        }
+      } else {
+        archive.style.display = 'none';
+        archiveList.innerHTML = '';
+        if (archiveCountEl) archiveCountEl.textContent = '';
+      }
     }
 
   } catch (err) {
@@ -1688,29 +1735,33 @@ async function renderDeferredColumn() {
  * Builds HTML for one active checklist item: checkbox, title link,
  * domain, time ago, dismiss button.
  */
-function renderDeferredItem(item) {
+function renderDeferredItem(item, mode = 'active') {
   let domain = '';
   try { domain = new URL(item.url).hostname.replace(/^www\./, ''); } catch {}
   const ago = timeAgo(item.savedAt);
+  const completedAgo = item.completedAt ? timeAgo(item.completedAt) : ago;
   const safeUrl = escapeHtml(item.url);
   const safeTitle = escapeHtml(item.title || item.url);
   const safeDomain = escapeHtml(domain);
-  const safeAgo = escapeHtml(ago);
+  const safeAgo = escapeHtml(mode === 'archived' ? completedAgo : ago);
   const faviconHtml = renderFaviconImg('deferred-favicon', item.url, 16, item.favIconUrl, item.title || item.url);
+  const isArchived = mode === 'archived';
 
   return `
-    <div class="deferred-item" data-deferred-id="${item.id}">
-      <input type="checkbox" class="deferred-checkbox" data-action="check-deferred" data-deferred-id="${item.id}">
+    <div class="deferred-item${isArchived ? ' archived' : ''}" data-deferred-id="${item.id}">
+      ${isArchived
+        ? '<span class="deferred-archived-mark" aria-hidden="true">✓</span>'
+        : `<input type="checkbox" class="deferred-checkbox" data-action="check-deferred" data-deferred-id="${item.id}">`}
       <div class="deferred-info">
         <a href="${safeUrl}" target="_blank" rel="noopener" class="deferred-title" title="${safeTitle}">
           ${faviconHtml}${safeTitle}
         </a>
         <div class="deferred-meta">
           <span>${safeDomain}</span>
-          <span>${safeAgo}</span>
+          <span>${isArchived ? 'archived ' : ''}${safeAgo}</span>
         </div>
       </div>
-      <button class="deferred-dismiss" data-action="dismiss-deferred" data-deferred-id="${item.id}" title="Dismiss">
+      <button class="deferred-dismiss" data-action="${isArchived ? 'delete-archived-deferred' : 'dismiss-deferred'}" data-deferred-id="${item.id}" title="${isArchived ? 'Delete' : 'Dismiss'}">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
       </button>
     </div>`;
@@ -1735,6 +1786,8 @@ function renderDeferredItem(item) {
 async function renderStaticDashboard() {
   // --- Header ---
   updateGanzhiHeader();
+  const { openTabsSortMode: savedSortMode = openTabsSortMode } = await chrome.storage.local.get('openTabsSortMode');
+  openTabsSortMode = savedSortMode;
 
   // --- Search + top sites ---
   await renderFavoritesShelf();
@@ -1821,20 +1874,17 @@ async function renderStaticDashboard() {
     }
   }
 
-  // Sort domains by tab count, then alphabetically for stable ordering.
-  domainGroups = Object.values(groupMap).sort((a, b) => {
-    const countDiff = b.tabs.length - a.tabs.length;
-    if (countDiff !== 0) return countDiff;
-    return (a.label || a.domain).localeCompare(b.label || b.domain);
-  });
+  domainGroups = sortDomainGroups(Object.values(groupMap), openTabsSortMode);
 
   // --- Render domain cards ---
   const openTabsSection      = document.getElementById('openTabsSection');
   const openTabsMissionsEl   = document.getElementById('openTabsMissions');
   const openTabsSectionTitle = document.getElementById('openTabsSectionTitle');
+  const openTabsSortSelect   = document.getElementById('openTabsSortSelect');
 
   if (domainGroups.length > 0 && openTabsSection) {
     if (openTabsSectionTitle) openTabsSectionTitle.textContent = 'Open tabs';
+    if (openTabsSortSelect) openTabsSortSelect.value = openTabsSortMode;
     updateOpenTabsSectionSummary(realTabs.length, domainGroups.length);
     openTabsMissionsEl.innerHTML = domainGroups.map(g => renderDomainCard(g)).join('');
     openTabsSection.style.display = 'block';
@@ -1860,6 +1910,14 @@ document.addEventListener('submit', async (e) => {
 
   const input = document.getElementById('newTabSearchInput');
   await searchOrNavigate(input ? input.value : '');
+});
+
+document.addEventListener('change', async (e) => {
+  if (e.target.id !== 'openTabsSortSelect') return;
+
+  openTabsSortMode = e.target.value || 'count-desc';
+  await chrome.storage.local.set({ openTabsSortMode });
+  await renderStaticDashboard();
 });
 
 
@@ -2060,6 +2118,25 @@ document.addEventListener('click', async (e) => {
         item.remove();
         renderDeferredColumn();
       }, 300);
+    }
+    return;
+  }
+
+  if (action === 'delete-archived-deferred') {
+    const id = actionEl.dataset.deferredId;
+    if (!id) return;
+
+    await deleteSavedTab(id);
+
+    const item = actionEl.closest('.deferred-item');
+    if (item) {
+      item.classList.add('removing');
+      setTimeout(() => {
+        item.remove();
+        renderDeferredColumn();
+      }, 300);
+    } else {
+      await renderDeferredColumn();
     }
     return;
   }

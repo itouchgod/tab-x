@@ -40,11 +40,12 @@ Tab X 会替换 Chrome 的新标签页，提供一个本地运行、Apple 风格
 - **拖拽保存快捷入口**：把任意打开的标签行拖到 Top sites 区域，即可保存为快捷入口。
 - **移除快捷入口**：悬停后点击小 `x`；手动快捷入口会被删除，自动 Top sites 或历史入口会在 Tab X 中隐藏。
 - **按主域名分组打开标签**：用紧凑列表展示，子行缩进，并提供单行 `X` 关闭按钮。
+- **打开标签排序**：可按标签数量、域名 A-Z 或最近活跃排序。
 - **Homepages 分组**：把 Gmail、X、YouTube、LinkedIn、GitHub 等首页类标签集中到一个清理卡片中。
 - **重复标签检测**：标记重复 URL，并可一键关闭多余副本，只保留一个。
 - **点击标签标题跳转**：可以直接切换到对应标签，即使它在另一个 Chrome 窗口里。
 - **关闭反馈**：关闭标签时提供 swoosh 声音和礼花动画。
-- **稍后再看**：关闭前可把标签保存到本地清单，右侧面板只显示活跃保存项。
+- **稍后再看**：关闭前可把标签保存到本地清单；打勾后的项目会进入 Archived 区域，并可删除。
 - **Localhost 分组**：显示端口号，方便区分本地开发项目。
 - **可展开分组**：每组默认显示前 8 个标签，更多标签通过 `+N more` 展开。
 - **100% 本地数据存储**：使用 Chrome 扩展 API 和 `chrome.storage.local`。
@@ -73,12 +74,14 @@ cd tab-x
 ## 使用方式
 
 - 在搜索框输入关键词或网址，用来搜索或打开网页。
+- 使用 Open tabs 的排序菜单，在标签数量、域名 A-Z、最近活跃之间切换。
 - 点击 Top sites 快捷入口，在当前标签页打开对应网站。
 - 点击 Top sites 里的 `+` 添加自定义快捷入口。
 - 把 **Open tabs** 中的标签行拖到 **Top sites**，保存为快捷入口。
 - 悬停 Top sites 快捷入口并点击 `x`，即可删除或隐藏它。
 - 点击打开标签行，切换到对应标签。
 - 点击标签行上的书签图标，将标签保存到稍后再看，然后再关闭。
+- 勾选稍后再看项目会将其归档；Archived 中的记录可以删除。
 - 点击标签行上的 `x`，只关闭这一条标签。
 - 点击多标签域名分组上的 **Close All**，关闭该分组。
 - 当出现重复标签提示时，点击 **Close duplicates** 清理重复标签。
@@ -100,6 +103,7 @@ cd tab-x
 | 稍后再看 | `chrome.storage.local` key `deferred` |
 | 手动快捷入口 | `chrome.storage.local` key `favoriteLinks` |
 | 隐藏的自动快捷入口 | `chrome.storage.local` key `hiddenTopSiteUrls` |
+| 打开标签排序偏好 | `chrome.storage.local` key `openTabsSortMode` |
 | 声音 | Web Audio API |
 | 礼花动画 | DOM/CSS animation |
 

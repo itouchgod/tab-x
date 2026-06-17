@@ -83,6 +83,14 @@
       <div class="section-header">
         <h2 id="openTabsSectionTitle">Right now</h2>
         <div class="section-count" id="openTabsSectionCount"></div>
+        <label class="sort-control" title="Sort open tab groups">
+          <span>Sort</span>
+          <select id="openTabsSortSelect" aria-label="Sort open tab groups">
+            <option value="count-desc">Most tabs</option>
+            <option value="name-asc">Domain A-Z</option>
+            <option value="recent-desc">Recently active</option>
+          </select>
+        </label>
       </div>
       <div class="missions" id="openTabsMissions"></div>
     </div>
@@ -100,6 +108,14 @@
       <!-- Empty state — shown when no active deferred tabs -->
       <div class="deferred-empty" id="deferredEmpty" style="display:none">
         Nothing saved. Living in the moment.
+      </div>
+
+      <div class="deferred-archive" id="deferredArchive" style="display:none">
+        <div class="section-header archive-header">
+          <h2>Archived</h2>
+          <div class="section-count" id="deferredArchiveCount"></div>
+        </div>
+        <div class="deferred-list archive-list" id="deferredArchiveList"></div>
       </div>
 
     </div>
