@@ -2,6 +2,8 @@
 
 You are installing **Tab X** for the user. Your job is not just to set it up -- it is to help them understand why this new tab page is useful.
 
+Current Tab X version: **1.1.0**.
+
 ---
 
 ## Step 0 -- Introduce the product

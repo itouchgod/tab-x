@@ -2,6 +2,8 @@
 
 [中文说明](README.zh-CN.md)
 
+Current version: **1.1.0**
+
 **A calm Chrome new tab dashboard for tabs, shortcuts, and time.**
 
 Tab X replaces Chrome's new tab page with a local, Apple-inspired dashboard. It shows the current Ganzhi time on the left, a word clock plus open-tab count on the right, icon-style access to top sites, and a clean domain-grouped view of every tab you currently have open.
