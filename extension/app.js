@@ -27,6 +27,51 @@
 let openTabs = [];
 const collapsedDomainIds = new Set();
 let openTabsSortMode = 'count-desc';
+let deferredArchiveExpanded = false;
+
+const themeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+function getStoredThemePreference() {
+  const stored = localStorage.getItem('tabx-theme');
+  return stored === 'dark' || stored === 'light' ? stored : null;
+}
+
+function getEffectiveTheme(preference = getStoredThemePreference()) {
+  if (preference) return preference;
+  return themeMediaQuery.matches ? 'dark' : 'light';
+}
+
+function applyTheme(preference = getStoredThemePreference()) {
+  const root = document.documentElement;
+  const effectiveTheme = getEffectiveTheme(preference);
+
+  if (preference) {
+    root.dataset.theme = preference;
+  } else {
+    delete root.dataset.theme;
+  }
+
+  root.dataset.effectiveTheme = effectiveTheme;
+
+  const toggle = document.getElementById('themeToggle');
+  if (toggle) {
+    const nextTheme = effectiveTheme === 'dark' ? 'light' : 'dark';
+    toggle.setAttribute('aria-label', `Switch to ${nextTheme} mode`);
+    toggle.title = `Switch to ${nextTheme} mode`;
+  }
+}
+
+function toggleThemePreference() {
+  const nextTheme = getEffectiveTheme() === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('tabx-theme', nextTheme);
+  applyTheme(nextTheme);
+}
+
+applyTheme();
+
+themeMediaQuery.addEventListener('change', () => {
+  if (!getStoredThemePreference()) applyTheme(null);
+});
 
 document.addEventListener('error', event => {
   const target = event.target;
@@ -246,7 +291,7 @@ async function closeTabOutDupes() {
  */
 async function saveTabForLater(tab) {
   const { deferred = [] } = await chrome.storage.local.get('deferred');
-  deferred.push({
+  const savedItem = {
     id:        Date.now().toString(),
     url:       tab.url,
     title:     tab.title,
@@ -254,8 +299,10 @@ async function saveTabForLater(tab) {
     savedAt:   new Date().toISOString(),
     completed: false,
     dismissed: false,
-  });
+  };
+  deferred.push(savedItem);
   await chrome.storage.local.set({ deferred });
+  return savedItem;
 }
 
 /**
@@ -287,6 +334,7 @@ async function checkOffSavedTab(id) {
     tab.completedAt = new Date().toISOString();
     await chrome.storage.local.set({ deferred });
   }
+  return tab || null;
 }
 
 /**
@@ -447,14 +495,19 @@ function shootConfetti(x, y) {
 function animateCardOut(card) {
   if (!card) return;
 
+  const container = card.parentElement;
   const rect = card.getBoundingClientRect();
   shootConfetti(rect.left + rect.width / 2, rect.top + rect.height / 2);
 
-  card.classList.add('closing');
-  setTimeout(() => {
-    card.remove();
-    checkAndShowEmptyState();
-  }, 300);
+  animateSiblingReflow(
+    container,
+    '.mission-card',
+    () => card.remove(),
+    {
+      onAfterMutate: checkAndShowEmptyState,
+      duration: 320,
+    },
+  );
 }
 
 function refreshDomainCardAfterChipRemoval(card) {
@@ -481,22 +534,196 @@ function refreshDomainCardAfterChipRemoval(card) {
   }
 }
 
+function animateSiblingReflow(container, selector, mutate, options = {}) {
+  if (!container) {
+    mutate?.();
+    options.onAfterMutate?.();
+    options.onComplete?.();
+    return;
+  }
+
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (prefersReducedMotion) {
+    mutate?.();
+    options.onAfterMutate?.();
+    options.onComplete?.();
+    return;
+  }
+
+  const duration = options.duration || 280;
+  const easing = options.easing || 'cubic-bezier(0.22, 1, 0.36, 1)';
+  const before = new Map(
+    Array.from(container.querySelectorAll(selector)).map(el => [el, el.getBoundingClientRect()]),
+  );
+
+  mutate?.();
+  options.onAfterMutate?.();
+
+  requestAnimationFrame(() => {
+    let animated = false;
+
+    for (const el of container.querySelectorAll(selector)) {
+      const previous = before.get(el);
+      if (!previous) continue;
+
+      const next = el.getBoundingClientRect();
+      const dx = previous.left - next.left;
+      const dy = previous.top - next.top;
+      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
+
+      animated = true;
+      el.classList.add('is-reflowing');
+      el.style.transition = 'none';
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+
+      requestAnimationFrame(() => {
+        el.style.transition = `transform ${duration}ms ${easing}`;
+        el.style.transform = '';
+      });
+
+      setTimeout(() => {
+        el.classList.remove('is-reflowing');
+        el.style.transition = '';
+        el.style.transform = '';
+      }, duration + 40);
+    }
+
+    if (animated) {
+      setTimeout(() => options.onComplete?.(), duration + 40);
+    } else {
+      options.onComplete?.();
+    }
+  });
+}
+
 function animateChipOut(chip, afterRemove, options = {}) {
   if (!chip) {
     afterRemove?.();
     return;
   }
 
+  const container = chip.closest('.mission-pages');
+  chip.style.maxHeight = `${chip.getBoundingClientRect().height}px`;
+  chip.style.overflow = 'hidden';
+  chip.getBoundingClientRect();
+
   if (!options.skipConfetti) {
     const rect = chip.getBoundingClientRect();
     shootConfetti(rect.right - 38, rect.top + rect.height / 2);
   }
   chip.classList.add('closing-tab');
+  requestAnimationFrame(() => {
+    chip.style.maxHeight = '0px';
+  });
 
   setTimeout(() => {
-    chip.remove();
-    afterRemove?.();
+    animateSiblingReflow(
+      container,
+      '.page-chip:not(.closing-tab)',
+      () => chip.remove(),
+      { onAfterMutate: afterRemove },
+    );
   }, 260);
+}
+
+function removeDeferredItemWithReflow(item, onComplete) {
+  if (!item) {
+    onComplete?.();
+    return;
+  }
+
+  const container = item.parentElement;
+  animateSiblingReflow(
+    container,
+    '.deferred-item:not(.removing)',
+    () => item.remove(),
+    { onComplete },
+  );
+}
+
+function getDeferredDomCounts() {
+  return {
+    activeCount: document.querySelectorAll('#deferredList .deferred-item').length,
+    archivedCount: document.querySelectorAll('#deferredArchiveList .deferred-item').length,
+  };
+}
+
+async function updateDeferredColumnMeta(counts) {
+  const column = document.getElementById('deferredColumn');
+  const dashboard = document.getElementById('dashboardColumns');
+  const list = document.getElementById('deferredList');
+  const empty = document.getElementById('deferredEmpty');
+  const countEl = document.getElementById('deferredCount');
+  const archiveList = document.getElementById('deferredArchiveList');
+  const archiveToggle = document.getElementById('deferredArchiveToggle');
+  const archiveLabel = document.getElementById('deferredArchiveLabel');
+
+  if (!column) return;
+
+  let activeCount = counts?.activeCount;
+  let archivedCount = counts?.archivedCount;
+
+  if (activeCount === undefined || archivedCount === undefined) {
+    const { active, archived } = await getSavedTabs();
+    activeCount = active.length;
+    archivedCount = archived.length;
+  }
+
+  const hasActive = activeCount > 0;
+  const hasArchived = archivedCount > 0;
+
+  if (!hasActive && !hasArchived) {
+    column.style.display = 'none';
+    dashboard?.classList.remove('saved-only');
+    return;
+  }
+
+  if (countEl) {
+    countEl.textContent = hasActive ? `${activeCount} item${activeCount !== 1 ? 's' : ''}` : '';
+  }
+
+  if (list) list.style.display = hasActive ? '' : 'none';
+  if (empty) empty.style.display = hasActive ? 'none' : 'block';
+
+  if (!hasArchived) deferredArchiveExpanded = false;
+  column.classList.toggle('archive-open', hasArchived && deferredArchiveExpanded);
+
+  if (archiveLabel) archiveLabel.textContent = `Archived (${archivedCount})`;
+  if (archiveToggle) {
+    archiveToggle.disabled = !hasArchived;
+    archiveToggle.setAttribute('aria-expanded', hasArchived && deferredArchiveExpanded ? 'true' : 'false');
+  }
+  if (archiveList && !hasArchived) archiveList.innerHTML = '';
+}
+
+async function appendDeferredItem(item, mode = 'active') {
+  const column = document.getElementById('deferredColumn');
+  const dashboard = document.getElementById('dashboardColumns');
+  const list = document.getElementById(mode === 'archived' ? 'deferredArchiveList' : 'deferredList');
+  const empty = document.getElementById('deferredEmpty');
+  const archive = document.getElementById('deferredArchive');
+
+  if (!column || !list) {
+    await renderDeferredColumn();
+    return;
+  }
+
+  column.style.display = 'flex';
+  dashboard?.classList.toggle('saved-only', domainGroups.length === 0);
+
+  if (mode === 'active') {
+    list.style.display = '';
+    if (empty) empty.style.display = 'none';
+  } else if (archive) {
+    archive.style.display = 'block';
+  }
+
+  const template = document.createElement('template');
+  template.innerHTML = renderDeferredItem(item, mode).trim();
+  const element = template.content.firstElementChild;
+  if (element) list.appendChild(element);
+
+  await updateDeferredColumnMeta(getDeferredDomCounts());
 }
 
 /**
@@ -1756,7 +1983,8 @@ async function renderDeferredColumn() {
   const countEl        = document.getElementById('deferredCount');
   const archive        = document.getElementById('deferredArchive');
   const archiveList    = document.getElementById('deferredArchiveList');
-  const archiveCountEl = document.getElementById('deferredArchiveCount');
+  const archiveToggle  = document.getElementById('deferredArchiveToggle');
+  const archiveLabel   = document.getElementById('deferredArchiveLabel');
 
   if (!column) return;
 
@@ -1772,7 +2000,7 @@ async function renderDeferredColumn() {
       return;
     }
 
-    column.style.display = 'block';
+    column.style.display = 'flex';
     dashboard?.classList.toggle('saved-only', domainGroups.length === 0);
 
     // Render active checklist items
@@ -1787,18 +2015,23 @@ async function renderDeferredColumn() {
       empty.style.display = 'block';
     }
 
+    if (!hasArchived) deferredArchiveExpanded = false;
+
     if (archive && archiveList) {
-      if (hasArchived) {
-        archive.style.display = 'block';
-        archiveList.innerHTML = archived.map(item => renderDeferredItem(item, 'archived')).join('');
-        if (archiveCountEl) {
-          archiveCountEl.textContent = `${archived.length} item${archived.length !== 1 ? 's' : ''}`;
-        }
-      } else {
-        archive.style.display = 'none';
-        archiveList.innerHTML = '';
-        if (archiveCountEl) archiveCountEl.textContent = '';
-      }
+      archive.style.display = 'block';
+      archiveList.innerHTML = hasArchived
+        ? archived.map(item => renderDeferredItem(item, 'archived')).join('')
+        : '';
+      column.classList.toggle('archive-open', hasArchived && deferredArchiveExpanded);
+    }
+
+    if (archiveLabel) {
+      archiveLabel.textContent = `Archived (${archived.length})`;
+    }
+
+    if (archiveToggle) {
+      archiveToggle.disabled = !hasArchived;
+      archiveToggle.setAttribute('aria-expanded', hasArchived && deferredArchiveExpanded ? 'true' : 'false');
     }
 
   } catch (err) {
@@ -1829,12 +2062,12 @@ function renderDeferredItem(item, mode = 'active') {
   return `
     <div class="deferred-item${isArchived ? ' archived' : ''}" data-deferred-id="${item.id}">
       ${isArchived
-        ? '<span class="deferred-archived-mark" aria-hidden="true">✓</span>'
+        ? '<span class="deferred-archived-mark" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m20.25 7.5-.625 10.632A2.25 2.25 0 0 1 17.378 20.25H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5m16.5 0H3.75m16.5 0-1.5-3h-13.5l-1.5 3M9.75 12h4.5" /></svg></span>'
         : `<input type="checkbox" class="deferred-checkbox" data-action="check-deferred" data-deferred-id="${item.id}">`}
       <div class="deferred-info">
-        <a href="${safeUrl}" target="_blank" rel="noopener" class="deferred-title" title="${safeTitle}">
+        <button type="button" class="deferred-title deferred-title-button" data-action="open-deferred" data-url="${safeUrl}" aria-label="Open ${safeTitle}">
           ${faviconHtml}${safeTitle}
-        </a>
+        </button>
         <div class="deferred-meta">
           <span>${safeDomain}</span>
           <span>${isArchived ? 'archived ' : ''}${safeAgo}</span>
@@ -1860,7 +2093,7 @@ function renderOpenTabsSection() {
     if (openTabsSortSelect) openTabsSortSelect.value = openTabsSortMode;
     updateOpenTabsSectionSummary(realTabs.length, domainGroups.length);
     openTabsMissionsEl.innerHTML = domainGroups.map(g => renderDomainCard(g)).join('');
-    openTabsSection.style.display = 'block';
+    openTabsSection.style.display = 'flex';
   } else if (openTabsSection) {
     openTabsSection.style.display = 'none';
   }
@@ -1939,6 +2172,20 @@ document.addEventListener('click', async (e) => {
 
   const action = actionEl.dataset.action;
 
+  if (action === 'toggle-theme') {
+    toggleThemePreference();
+    return;
+  }
+
+  if (action === 'toggle-deferred-archive') {
+    deferredArchiveExpanded = !deferredArchiveExpanded;
+    const column = document.getElementById('deferredColumn');
+    const toggle = document.getElementById('deferredArchiveToggle');
+    column?.classList.toggle('archive-open', deferredArchiveExpanded);
+    toggle?.setAttribute('aria-expanded', deferredArchiveExpanded ? 'true' : 'false');
+    return;
+  }
+
   // ---- Close duplicate Tab X tabs ----
   if (action === 'close-tabout-dupes') {
     await closeTabOutDupes();
@@ -1957,6 +2204,14 @@ document.addEventListener('click', async (e) => {
   if (action === 'open-favorite') {
     e.preventDefault();
     const url = actionEl.dataset.url || actionEl.getAttribute('href');
+    if (url) await navigateCurrentTab(url);
+    return;
+  }
+
+  if (action === 'open-deferred') {
+    e.preventDefault();
+    e.stopPropagation();
+    const url = actionEl.dataset.url;
     if (url) await navigateCurrentTab(url);
     return;
   }
@@ -2039,6 +2294,13 @@ document.addEventListener('click', async (e) => {
     // Animate the chip row out
     const chip = actionEl.closest('.page-chip');
     const isLastChip = card?.querySelectorAll('.page-chip[data-action="focus-tab"]:not(.closing-tab)').length === 1;
+    if (isLastChip && card) {
+      animateCardOut(card);
+      updateOpenTabsSectionSummary(getRealTabs().length, document.querySelectorAll('#openTabsMissions .mission-card:not(.closing)').length);
+      showToast('Tab closed');
+      return;
+    }
+
     animateChipOut(chip, () => {
       refreshDomainCardAfterChipRemoval(card);
       updateOpenTabsSectionSummary(getRealTabs().length, document.querySelectorAll('#openTabsMissions .mission-card:not(.closing)').length);
@@ -2058,8 +2320,9 @@ document.addEventListener('click', async (e) => {
     if (!tabUrl) return;
 
     // Save to chrome.storage.local
+    let savedItem;
     try {
-      await saveTabForLater({ url: tabUrl, title: tabTitle, favIconUrl });
+      savedItem = await saveTabForLater({ url: tabUrl, title: tabTitle, favIconUrl });
     } catch (err) {
       console.error('[tab-x] Failed to save tab:', err);
       showToast('Failed to save tab');
@@ -2075,13 +2338,21 @@ document.addEventListener('click', async (e) => {
     // Animate chip out
     const chip = actionEl.closest('.page-chip');
     const isLastChip = card?.querySelectorAll('.page-chip[data-action="focus-tab"]:not(.closing-tab)').length === 1;
+    if (isLastChip && card) {
+      animateCardOut(card);
+      updateOpenTabsSectionSummary(getRealTabs().length, document.querySelectorAll('#openTabsMissions .mission-card:not(.closing)').length);
+      showToast('Saved for later');
+      await appendDeferredItem(savedItem, 'active');
+      return;
+    }
+
     animateChipOut(chip, () => {
       refreshDomainCardAfterChipRemoval(card);
       updateOpenTabsSectionSummary(getRealTabs().length, document.querySelectorAll('#openTabsMissions .mission-card:not(.closing)').length);
     }, { skipConfetti: isLastChip });
 
     showToast('Saved for later');
-    await renderDeferredColumn();
+    await appendDeferredItem(savedItem, 'active');
     return;
   }
 
@@ -2090,19 +2361,18 @@ document.addEventListener('click', async (e) => {
     const id = actionEl.dataset.deferredId;
     if (!id) return;
 
-    await checkOffSavedTab(id);
+    const archivedItem = await checkOffSavedTab(id);
 
     // Animate: strikethrough first, then slide out
     const item = actionEl.closest('.deferred-item');
     if (item) {
       item.classList.add('checked');
       setTimeout(() => {
-        item.classList.add('removing');
-        setTimeout(() => {
-          item.remove();
-          renderDeferredColumn(); // refresh counts and archive
-        }, 300);
-      }, 800);
+        removeDeferredItemWithReflow(item, async () => {
+          if (archivedItem) await appendDeferredItem(archivedItem, 'archived');
+          else await updateDeferredColumnMeta(getDeferredDomCounts());
+        });
+      }, 260);
     }
     return;
   }
@@ -2116,11 +2386,7 @@ document.addEventListener('click', async (e) => {
 
     const item = actionEl.closest('.deferred-item');
     if (item) {
-      item.classList.add('removing');
-      setTimeout(() => {
-        item.remove();
-        renderDeferredColumn();
-      }, 300);
+      removeDeferredItemWithReflow(item, () => updateDeferredColumnMeta(getDeferredDomCounts()));
     }
     return;
   }
@@ -2133,13 +2399,9 @@ document.addEventListener('click', async (e) => {
 
     const item = actionEl.closest('.deferred-item');
     if (item) {
-      item.classList.add('removing');
-      setTimeout(() => {
-        item.remove();
-        renderDeferredColumn();
-      }, 300);
+      removeDeferredItemWithReflow(item, () => updateDeferredColumnMeta(getDeferredDomCounts()));
     } else {
-      await renderDeferredColumn();
+      await updateDeferredColumnMeta(getDeferredDomCounts());
     }
     return;
   }
