@@ -96,7 +96,7 @@ cd tab-x
 | Top sites | `chrome.topSites` |
 | 快捷入口历史回退 | `chrome.history` |
 | 网站图标 | Chrome 扩展 `/_favicon/` API，并用首字母占位兜底 |
-| 新标签页 favicon | 内置 Chrome 风格 `icons/newtab-favicon.png` 资源 |
+| 新标签页 favicon | 内置 Chrome 风格 `icons/newtab-favicon.svg` 资源 |
 | 稍后再看 | `chrome.storage.local` key `deferred` |
 | 手动快捷入口 | `chrome.storage.local` key `favoriteLinks` |
 | 隐藏的自动快捷入口 | `chrome.storage.local` key `hiddenTopSiteUrls` |
@@ -127,7 +127,7 @@ extension/
 - 修改文件后，在 `chrome://extensions` 重新加载未打包扩展。
 - 如果权限发生变化，Chrome 可能会在重新加载扩展时要求确认。
 - Top sites 和域名分组这类站点级图标会使用 Chrome 原生扩展 `/_favicon/` provider，并传入站点根地址，以获得更稳定的 logo；单个标签行会使用具体页面地址，必要时再回退到 Chrome 已知的 `tab.favIconUrl`。
-- 浏览器标签栏里的 favicon 在 `index.html` 中声明为 `icons/newtab-favicon.png`，可以稳定显示，并且不会继续复用 Tab X 的扩展图标。
+- 浏览器标签栏里的 favicon 在 `index.html` 中声明为 `icons/newtab-favicon.svg`，可以稳定显示，并且不会继续复用 Tab X 的扩展图标。
 
 ---
 

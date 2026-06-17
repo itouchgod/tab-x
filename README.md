@@ -98,7 +98,7 @@ If you already loaded Tab X before, click **Reload** on the extension card after
 | Top sites | `chrome.topSites` |
 | History fallback for shortcuts | `chrome.history` |
 | Site icons | Chrome extension `/_favicon/` API, with initials fallback |
-| New tab favicon | Bundled Chrome-style `icons/newtab-favicon.png` asset |
+| New tab favicon | Bundled Chrome-style `icons/newtab-favicon.svg` asset |
 | Saved for later | `chrome.storage.local` key `deferred` |
 | Manual shortcuts | `chrome.storage.local` key `favoriteLinks` |
 | Hidden automatic shortcuts | `chrome.storage.local` key `hiddenTopSiteUrls` |
@@ -129,7 +129,7 @@ extension/
 - After editing files, reload the unpacked extension from `chrome://extensions`.
 - If permissions change, Chrome may ask for confirmation when the extension is reloaded.
 - Site-level icons, such as Top sites and domain group headers, use Chrome's native extension `/_favicon/` provider with the origin URL for a stable logo. Individual tab rows use the exact page URL and can fall back to Chrome's `tab.favIconUrl` when needed.
-- The browser tab favicon is declared in `index.html` using `icons/newtab-favicon.png`, so it stays visible and does not reuse Tab X's extension icon.
+- The browser tab favicon is declared in `index.html` using `icons/newtab-favicon.svg`, so it stays visible and does not reuse Tab X's extension icon.
 
 ---
 
