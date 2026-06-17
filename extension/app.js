@@ -972,6 +972,10 @@ function renderFaviconImg(className, pageUrl, size = 16, explicitIconUrl = '', t
   return `<span class="site-icon ${escapeHtml(className)}" aria-hidden="true"><img class="site-icon-img" src="${escapeHtml(primaryIcon)}" alt="" decoding="async" loading="lazy" data-hide-on-error="true"${fallbackIcon ? ` data-fallback-src="${escapeHtml(fallbackIcon)}"` : ''}><span class="site-icon-fallback">${fallbackInitial}</span></span>`;
 }
 
+function renderChromeSiteLogo(className, pageUrl, size = 64, title = '') {
+  return renderFaviconImg(className, canonicalIconPageUrl(pageUrl) || pageUrl, size, '', title);
+}
+
 function searchOrUrlTarget(rawValue) {
   const value = (rawValue || '').trim();
   if (!value) return '';
@@ -1202,8 +1206,7 @@ async function renderFavoritesShelf() {
       const safeUrl = escapeHtml(favorite.url);
       const safeTitle = escapeHtml(favorite.title);
       const safeSource = escapeHtml(favorite.source || 'top-site');
-      const favoriteIconPageUrl = canonicalIconPageUrl(favorite.url) || favorite.url;
-      const faviconHtml = renderFaviconImg('favorite-favicon', favoriteIconPageUrl, 32, favorite.favIconUrl, favorite.title);
+      const faviconHtml = renderChromeSiteLogo('favorite-favicon', favorite.url, 64, favorite.title);
 
       return `
         <div class="favorite-link favorite-item" role="link" tabindex="0" data-action="open-favorite" data-url="${safeUrl}" data-source="${safeSource}" title="${safeTitle}">
@@ -1532,7 +1535,7 @@ function renderDomainCard(group) {
     ? groupIconTab?.url
     : canonicalIconPageUrl(groupIconTab?.url) || groupIconTab?.url;
   const groupFaviconHtml = groupIconTab
-    ? renderFaviconImg('mission-domain-favicon', groupIconPageUrl, 32, groupIconTab.favIconUrl, groupTitle)
+    ? renderChromeSiteLogo('mission-domain-favicon', groupIconPageUrl, 32, groupTitle)
     : '';
   const safeGroupTitle = escapeHtml(groupTitle);
 

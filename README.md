@@ -97,7 +97,7 @@ If you already loaded Tab X before, click **Reload** on the extension card after
 | Search | `chrome.search`, with URL fallback |
 | Top sites | `chrome.topSites` |
 | History fallback for shortcuts | `chrome.history` |
-| Site icons | Chrome extension `/_favicon/` API, with `tab.favIconUrl` and initials fallback |
+| Site icons | Chrome extension `/_favicon/` API, with initials fallback |
 | Saved for later | `chrome.storage.local` key `deferred` |
 | Manual shortcuts | `chrome.storage.local` key `favoriteLinks` |
 | Hidden automatic shortcuts | `chrome.storage.local` key `hiddenTopSiteUrls` |
@@ -127,7 +127,7 @@ extension/
 - `extension/config.local.js` is intentionally ignored and can be used for personal landing-page or grouping rules.
 - After editing files, reload the unpacked extension from `chrome://extensions`.
 - If permissions change, Chrome may ask for confirmation when the extension is reloaded.
-- Site-level icons, such as Top sites and domain group headers, use the origin URL for a stable logo. Individual tab rows use the exact page URL so page-specific favicons still show when Chrome has them.
+- Site-level icons, such as Top sites and domain group headers, use Chrome's native extension `/_favicon/` provider with the origin URL for a stable logo. Individual tab rows use the exact page URL and can fall back to Chrome's `tab.favIconUrl` when needed.
 
 ---
 
