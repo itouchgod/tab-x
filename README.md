@@ -2,11 +2,11 @@
 
 [中文说明](README.zh-CN.md)
 
-Current version: **1.1.0**
+Current version: **2.0.0**
 
 **A calm Chrome new tab dashboard for tabs, shortcuts, and time.**
 
-Tab X replaces Chrome's new tab page with a local, Apple-inspired dashboard. It shows the current Ganzhi time on the left, a word clock plus open-tab count on the right, icon-style access to top sites, and a clean domain-grouped view of every tab you currently have open.
+Tab X replaces Chrome's new tab page with a local, Apple-inspired dashboard. It shows the current Ganzhi time on the left, a word clock plus open-tab count on the right, icon-style access to top sites, and a clean domain-grouped view of every tab you currently have open. Version 2.0.0 also refines the saved-items panel, adds adaptive dark mode, and introduces a compact footer signature with a manual theme toggle.
 
 No server. No account. No build step. Everything runs inside the Chrome extension.
 
@@ -25,10 +25,13 @@ Start area
 
 Main dashboard
   Left:  Open tabs grouped by main domain in a compact light grouped list
-  Right: Saved for later checklist in a compact side panel, active items only
+  Right: Saved for later + Archived in one compact accordion panel
+
+Footer
+  Center: Design by L + theme toggle between two quiet divider lines
 ```
 
-There is no extension-owned bottom bar. The bottom area stays clean so Chrome's own UI can sit below the extension page.
+The bottom area is intentionally compressed: a thin centered footer keeps the design credit and theme toggle visible without feeling like a toolbar.
 
 ---
 
@@ -38,7 +41,8 @@ There is no extension-owned bottom bar. The bottom area stays clean so Chrome's 
 - **Word clock status** in the top-right renders the current time in natural English, such as `three minutes to twelve`.
 - **Open tab counter** sits beside the word clock and updates as tabs are opened or closed.
 - **Search box** behaves like a new-tab search/address field: URLs open directly, search terms use Chrome's default search provider when available.
-- **Apple-inspired layout** uses system fonts, cool white surfaces, subtle shadows, icon-style shortcuts, and no custom bottom bar.
+- **Apple-inspired layout** uses system fonts, cool white surfaces, subtle shadows, icon-style shortcuts, and a compact signature footer.
+- **Adaptive dark mode** follows the system `prefers-color-scheme` setting, with a manual footer toggle for light/dark switching.
 - **Top sites shortcuts** use Chrome `topSites`, with a history-based fallback when `topSites` is empty.
 - **Manual shortcuts** can be added with the `+` button and are stored locally.
 - **Drag tabs into Top sites** by dragging any open-tab row into the Top sites area.
@@ -49,7 +53,9 @@ There is no extension-owned bottom bar. The bottom area stays clean so Chrome's 
 - **Duplicate detection** flags repeated URLs and can close duplicates while keeping one copy.
 - **Click any tab title** to jump directly to that tab, even across Chrome windows.
 - **Close tabs with feedback** using a swoosh sound and confetti burst.
-- **Save for later** stores a tab in a local checklist before closing it; checked items move to an Archived section where they can be deleted.
+- **Save for later** stores a tab in a local checklist before closing it; checked items move into an Archived accordion inside the same side card.
+- **Smooth local updates** keep the saved/archived panel from visually refreshing when items are added, archived, or removed.
+- **Sync-ready storage utility** provides a modular `chrome.storage.sync` helper that stores only `url`, `title`, and `timestamp` to protect Chrome sync quotas.
 - **Localhost grouping** includes port numbers so local dev projects are easier to tell apart.
 - **Expandable groups** show the first 8 tabs, with a `+N more` control for larger groups.
 - **100% local data storage** using Chrome extension APIs and `chrome.storage.local`.
@@ -104,7 +110,8 @@ If you already loaded Tab X before, click **Reload** on the extension card after
 | History fallback for shortcuts | `chrome.history` |
 | Site icons | Chrome extension `/_favicon/` API, with initials fallback |
 | New tab favicon | Bundled Chrome-style `icons/newtab-favicon.svg` asset |
-| Saved for later | `chrome.storage.local` key `deferred` |
+| Saved for later UI | `chrome.storage.local` key `deferred` |
+| Sync storage utility | `chrome.storage.sync` keys `savedForLater`, `archived`; sanitized to `url`, `title`, `timestamp` |
 | Manual shortcuts | `chrome.storage.local` key `favoriteLinks` |
 | Hidden automatic shortcuts | `chrome.storage.local` key `hiddenTopSiteUrls` |
 | Open tabs sort preference | `chrome.storage.local` key `openTabsSortMode` |
@@ -123,6 +130,7 @@ extension/
   index.html         New tab page structure
   style.css          Dashboard styling
   app.js             Dashboard logic and UI interactions
+  storageSync.js     Importable chrome.storage.sync utility for saved/archive records
   background.js      Toolbar badge count service worker
   icons/             Extension icons
 ```
@@ -136,6 +144,7 @@ extension/
 - If permissions change, Chrome may ask for confirmation when the extension is reloaded.
 - Site-level icons, such as Top sites and domain group headers, use Chrome's native extension `/_favicon/` provider with the origin URL for a stable logo. Individual tab rows use the exact page URL and can fall back to Chrome's `tab.favIconUrl` when needed.
 - The browser tab favicon is declared in `index.html` using `icons/newtab-favicon.svg`, so it stays visible and does not reuse Tab X's extension icon.
+- `storageSync.js` is intentionally strict about synced data shape. It strips favicons, base64 data, images, and heavy metadata before writing to `chrome.storage.sync`.
 
 ---
 

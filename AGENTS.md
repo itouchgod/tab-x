@@ -2,7 +2,7 @@
 
 You are installing **Tab X** for the user. Your job is not just to set it up -- it is to help them understand why this new tab page is useful.
 
-Current Tab X version: **1.1.0**.
+Current Tab X version: **2.0.0**.
 
 ---
 
@@ -22,7 +22,9 @@ Before doing anything technical, tell the user what they are about to get:
 > - **Open tabs grouped by main domain** in a compact light grouped list
 > - **Homepages group** for Gmail, X, LinkedIn, YouTube, and GitHub homepages
 > - **Duplicate detection** with one-click cleanup
-> - **Save for later** checklist stored locally
+> - **Save for later + Archived** combined in one compact accordion card
+> - **Adaptive dark mode** that follows the system setting, with a manual footer toggle
+> - **Sync-ready storage utility** for lightweight saved/archive records across Chrome profiles
 > - **100% local**: no server, no account, no external database
 >
 > It is just a Chrome extension. Setup takes about 1 minute.
@@ -96,7 +98,8 @@ Once the extension is loaded:
 > 2. Top-right: word clock and open tab count.
 > 3. Center: search box, then icon-style Top sites.
 > 4. Main area: open tabs grouped by main domain in a compact light grouped list.
-> 5. Right side: Saved for later checklist in a compact side panel, active items only.
+> 5. Right side: Saved for later and Archived in a compact accordion side panel.
+> 6. Bottom: centered Design by L footer with a theme toggle.
 >
 > Key actions:
 > - Search or open URLs from the search box.
@@ -106,6 +109,8 @@ Once the extension is loaded:
 > - Hover a shortcut and click `x` to remove or hide it.
 > - Click a tab title to jump to it.
 > - Click a tab row's bookmark icon to save it for later.
+> - Click a saved item checkbox to move it into Archived.
+> - Click Archived to expand or collapse archived records.
 > - Click a tab row's `x` to close it.
 > - Use Close duplicates to clean repeated tabs.
 
@@ -115,7 +120,8 @@ Once the extension is loaded:
 
 - Tab X is a pure Chrome Manifest V3 extension.
 - No server, no Node.js runtime, no npm install, no database.
-- Saved tabs and custom shortcuts are stored in `chrome.storage.local`.
+- Saved tabs for the current UI and custom shortcuts are stored in `chrome.storage.local`.
+- The optional `storageSync.js` utility uses `chrome.storage.sync` and strips records to `url`, `title`, and `timestamp`.
 - Chrome top sites come from `chrome.topSites`.
 - If `chrome.topSites` is empty, Tab X uses `chrome.history` as a fallback.
 - To update after code changes, reload the extension in `chrome://extensions`.
