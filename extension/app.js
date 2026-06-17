@@ -183,6 +183,7 @@ async function closeDuplicateTabs(urls, keepOne = true) {
 
   if (toClose.length > 0) await chrome.tabs.remove(toClose);
   await fetchOpenTabs();
+  return toClose.length;
 }
 
 /**
@@ -2100,33 +2101,13 @@ document.addEventListener('click', async (e) => {
     const urls = urlsEncoded.split(',').map(u => decodeURIComponent(u)).filter(Boolean);
     if (urls.length === 0) return;
 
-    await closeDuplicateTabs(urls, true);
-    playCloseSound();
+    const closedCount = await closeDuplicateTabs(urls, true);
+    if (closedCount > 0) playCloseSound();
 
-    // Hide the dedup button
-    actionEl.style.transition = 'opacity 0.2s';
-    actionEl.style.opacity    = '0';
-    setTimeout(() => actionEl.remove(), 200);
-
-    // Remove dupe badges from the card
-    if (card) {
-      card.querySelectorAll('.chip-dupe-badge').forEach(b => {
-        b.style.transition = 'opacity 0.2s';
-        b.style.opacity    = '0';
-        setTimeout(() => b.remove(), 200);
-      });
-      card.querySelectorAll('.open-tabs-badge').forEach(badge => {
-        if (badge.textContent.includes('duplicate')) {
-          badge.style.transition = 'opacity 0.2s';
-          badge.style.opacity    = '0';
-          setTimeout(() => badge.remove(), 200);
-        }
-      });
-      card.classList.remove('has-amber-bar');
-      card.classList.add('has-neutral-bar');
-    }
-
-    showToast('Closed duplicates, kept one copy each');
+    await renderStaticDashboard();
+    showToast(closedCount > 0
+      ? `Closed ${closedCount} duplicate tab${closedCount !== 1 ? 's' : ''}`
+      : 'No duplicate tabs to close');
     return;
   }
 
