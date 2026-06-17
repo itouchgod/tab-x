@@ -2188,7 +2188,8 @@ document.addEventListener('click', async (e) => {
     const closedCount = await closeDuplicateTabs(urls, true);
     if (closedCount > 0) playCloseSound();
 
-    await renderStaticDashboard();
+    renderOpenTabsSection();
+    checkTabOutDupes();
     showToast(closedCount > 0
       ? `Closed ${closedCount} duplicate tab${closedCount !== 1 ? 's' : ''}`
       : 'No duplicate tabs to close');
