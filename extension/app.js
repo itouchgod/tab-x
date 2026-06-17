@@ -543,6 +543,85 @@ function sortDomainGroups(groups, mode) {
   });
 }
 
+function buildDomainGroups(realTabs) {
+  const groupMap = {};
+
+  // Custom group rules from config.local.js (if any)
+  const customGroups = typeof LOCAL_CUSTOM_GROUPS !== 'undefined' ? LOCAL_CUSTOM_GROUPS : [];
+
+  // Check if a URL matches a custom group rule; returns the rule or null
+  function matchCustomGroup(url) {
+    try {
+      const parsed = new URL(url);
+      return customGroups.find(r => {
+        const hostMatch = r.hostname
+          ? parsed.hostname === r.hostname
+          : r.hostnameEndsWith
+            ? parsed.hostname.endsWith(r.hostnameEndsWith)
+            : false;
+        if (!hostMatch) return false;
+        if (r.pathPrefix) return parsed.pathname.startsWith(r.pathPrefix);
+        return true; // hostname matched, no path filter
+      }) || null;
+    } catch { return null; }
+  }
+
+  function mainDomainFromParsedUrl(parsed) {
+    const hostname = parsed.hostname.replace(/^www\./, '');
+    if (!hostname) return '';
+    if (hostname === 'localhost') {
+      return parsed.port ? `${hostname}:${parsed.port}` : hostname;
+    }
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) return hostname;
+
+    const parts = hostname.split('.');
+    if (parts.length <= 2) return hostname;
+
+    const twoPartSuffixes = new Set([
+      'co.uk', 'org.uk', 'ac.uk', 'gov.uk',
+      'com.cn', 'net.cn', 'org.cn', 'gov.cn',
+      'com.au', 'net.au', 'org.au',
+      'co.jp', 'ne.jp', 'or.jp',
+      'co.kr', 'or.kr',
+      'com.br', 'com.mx', 'com.tr',
+      'co.nz',
+    ]);
+    const suffix = parts.slice(-2).join('.');
+    return twoPartSuffixes.has(suffix)
+      ? parts.slice(-3).join('.')
+      : parts.slice(-2).join('.');
+  }
+
+  function domainKeyFromTabUrl(url) {
+    if (!url) return '';
+    if (url.startsWith('file://')) return 'local-files';
+    return mainDomainFromParsedUrl(new URL(url));
+  }
+
+  for (const tab of realTabs) {
+    try {
+      // Check custom group rules first (e.g. merge subdomains, split by path)
+      const customRule = matchCustomGroup(tab.url);
+      if (customRule) {
+        const key = customRule.groupKey;
+        if (!groupMap[key]) groupMap[key] = { domain: key, label: customRule.groupLabel, tabs: [] };
+        groupMap[key].tabs.push(tab);
+        continue;
+      }
+
+      const hostname = domainKeyFromTabUrl(tab.url);
+      if (!hostname) continue;
+
+      if (!groupMap[hostname]) groupMap[hostname] = { domain: hostname, tabs: [] };
+      groupMap[hostname].tabs.push(tab);
+    } catch {
+      // Skip malformed URLs
+    }
+  }
+
+  return sortDomainGroups(Object.values(groupMap), openTabsSortMode);
+}
+
 /**
  * checkAndShowEmptyState()
  *
@@ -1767,6 +1846,26 @@ function renderDeferredItem(item, mode = 'active') {
     </div>`;
 }
 
+function renderOpenTabsSection() {
+  const realTabs = getRealTabs();
+  domainGroups = buildDomainGroups(realTabs);
+
+  const openTabsSection      = document.getElementById('openTabsSection');
+  const openTabsMissionsEl   = document.getElementById('openTabsMissions');
+  const openTabsSectionTitle = document.getElementById('openTabsSectionTitle');
+  const openTabsSortSelect   = document.getElementById('openTabsSortSelect');
+
+  if (domainGroups.length > 0 && openTabsSection) {
+    if (openTabsSectionTitle) openTabsSectionTitle.textContent = 'Open tabs';
+    if (openTabsSortSelect) openTabsSortSelect.value = openTabsSortMode;
+    updateOpenTabsSectionSummary(realTabs.length, domainGroups.length);
+    openTabsMissionsEl.innerHTML = domainGroups.map(g => renderDomainCard(g)).join('');
+    openTabsSection.style.display = 'block';
+  } else if (openTabsSection) {
+    openTabsSection.style.display = 'none';
+  }
+}
+
 
 /* ----------------------------------------------------------------
    MAIN DASHBOARD RENDERER
@@ -1794,103 +1893,7 @@ async function renderStaticDashboard() {
 
   // --- Fetch tabs ---
   await fetchOpenTabs();
-  const realTabs = getRealTabs();
-
-  // --- Group tabs by main domain ---
-  domainGroups = [];
-  const groupMap = {};
-
-  // Custom group rules from config.local.js (if any)
-  const customGroups = typeof LOCAL_CUSTOM_GROUPS !== 'undefined' ? LOCAL_CUSTOM_GROUPS : [];
-
-  // Check if a URL matches a custom group rule; returns the rule or null
-  function matchCustomGroup(url) {
-    try {
-      const parsed = new URL(url);
-      return customGroups.find(r => {
-        const hostMatch = r.hostname
-          ? parsed.hostname === r.hostname
-          : r.hostnameEndsWith
-            ? parsed.hostname.endsWith(r.hostnameEndsWith)
-            : false;
-        if (!hostMatch) return false;
-        if (r.pathPrefix) return parsed.pathname.startsWith(r.pathPrefix);
-        return true; // hostname matched, no path filter
-      }) || null;
-    } catch { return null; }
-  }
-
-  function mainDomainFromParsedUrl(parsed) {
-    const hostname = parsed.hostname.replace(/^www\./, '');
-    if (!hostname) return '';
-    if (hostname === 'localhost') {
-      return parsed.port ? `${hostname}:${parsed.port}` : hostname;
-    }
-    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) return hostname;
-
-    const parts = hostname.split('.');
-    if (parts.length <= 2) return hostname;
-
-    const twoPartSuffixes = new Set([
-      'co.uk', 'org.uk', 'ac.uk', 'gov.uk',
-      'com.cn', 'net.cn', 'org.cn', 'gov.cn',
-      'com.au', 'net.au', 'org.au',
-      'co.jp', 'ne.jp', 'or.jp',
-      'co.kr', 'or.kr',
-      'com.br', 'com.mx', 'com.tr',
-      'co.nz',
-    ]);
-    const suffix = parts.slice(-2).join('.');
-    return twoPartSuffixes.has(suffix)
-      ? parts.slice(-3).join('.')
-      : parts.slice(-2).join('.');
-  }
-
-  function domainKeyFromTabUrl(url) {
-    if (!url) return '';
-    if (url.startsWith('file://')) return 'local-files';
-    return mainDomainFromParsedUrl(new URL(url));
-  }
-
-  for (const tab of realTabs) {
-    try {
-      // Check custom group rules first (e.g. merge subdomains, split by path)
-      const customRule = matchCustomGroup(tab.url);
-      if (customRule) {
-        const key = customRule.groupKey;
-        if (!groupMap[key]) groupMap[key] = { domain: key, label: customRule.groupLabel, tabs: [] };
-        groupMap[key].tabs.push(tab);
-        continue;
-      }
-
-      let hostname;
-      hostname = domainKeyFromTabUrl(tab.url);
-      if (!hostname) continue;
-
-      if (!groupMap[hostname]) groupMap[hostname] = { domain: hostname, tabs: [] };
-      groupMap[hostname].tabs.push(tab);
-    } catch {
-      // Skip malformed URLs
-    }
-  }
-
-  domainGroups = sortDomainGroups(Object.values(groupMap), openTabsSortMode);
-
-  // --- Render domain cards ---
-  const openTabsSection      = document.getElementById('openTabsSection');
-  const openTabsMissionsEl   = document.getElementById('openTabsMissions');
-  const openTabsSectionTitle = document.getElementById('openTabsSectionTitle');
-  const openTabsSortSelect   = document.getElementById('openTabsSortSelect');
-
-  if (domainGroups.length > 0 && openTabsSection) {
-    if (openTabsSectionTitle) openTabsSectionTitle.textContent = 'Open tabs';
-    if (openTabsSortSelect) openTabsSortSelect.value = openTabsSortMode;
-    updateOpenTabsSectionSummary(realTabs.length, domainGroups.length);
-    openTabsMissionsEl.innerHTML = domainGroups.map(g => renderDomainCard(g)).join('');
-    openTabsSection.style.display = 'block';
-  } else if (openTabsSection) {
-    openTabsSection.style.display = 'none';
-  }
+  renderOpenTabsSection();
 
   // --- Check for duplicate Tab X tabs ---
   checkTabOutDupes();
@@ -1917,7 +1920,7 @@ document.addEventListener('change', async (e) => {
 
   openTabsSortMode = e.target.value || 'count-desc';
   await chrome.storage.local.set({ openTabsSortMode });
-  await renderStaticDashboard();
+  renderOpenTabsSection();
 });
 
 
