@@ -95,7 +95,7 @@ cd tab-x
 | 搜索 | `chrome.search`，并带有 URL 回退逻辑 |
 | Top sites | `chrome.topSites` |
 | 快捷入口历史回退 | `chrome.history` |
-| 网站图标 | `tab.favIconUrl`，并用 Chrome 扩展 `/_favicon/` 兜底 |
+| 网站图标 | Chrome 扩展 `/_favicon/` API，并用 `tab.favIconUrl` 和首字母占位兜底 |
 | 稍后再看 | `chrome.storage.local` key `deferred` |
 | 手动快捷入口 | `chrome.storage.local` key `favoriteLinks` |
 | 隐藏的自动快捷入口 | `chrome.storage.local` key `hiddenTopSiteUrls` |
@@ -125,6 +125,7 @@ extension/
 - `extension/config.local.js` 会被刻意忽略，可用于个人首页或分组规则。
 - 修改文件后，在 `chrome://extensions` 重新加载未打包扩展。
 - 如果权限发生变化，Chrome 可能会在重新加载扩展时要求确认。
+- Top sites 和域名分组这类站点级图标会使用站点根地址，以获得更稳定的 logo；单个标签行会使用具体页面地址，以保留 Chrome 已知的页面 favicon。
 
 ---
 

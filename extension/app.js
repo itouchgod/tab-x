@@ -37,6 +37,7 @@ document.addEventListener('error', event => {
       return;
     }
     target.hidden = true;
+    target.closest('.site-icon')?.classList.add('is-fallback');
   }
 }, true);
 
@@ -921,6 +922,31 @@ function chromeFaviconUrl(pageUrl, size = 16) {
   }
 }
 
+function canonicalIconPageUrl(pageUrl) {
+  if (!pageUrl) return '';
+
+  try {
+    const parsed = new URL(pageUrl);
+    if (!['http:', 'https:', 'file:'].includes(parsed.protocol)) return '';
+    if (parsed.protocol === 'file:') return pageUrl;
+    return `${parsed.protocol}//${parsed.host}/`;
+  } catch {
+    return '';
+  }
+}
+
+function siteInitial(pageUrl, title = '') {
+  const titleInitial = String(title || '').trim().charAt(0);
+  if (titleInitial) return titleInitial.toUpperCase();
+
+  try {
+    const host = new URL(pageUrl).hostname.replace(/^www\./, '');
+    return host.charAt(0).toUpperCase();
+  } catch {
+    return '?';
+  }
+}
+
 function usableImageUrl(url) {
   if (!url) return '';
 
@@ -932,15 +958,18 @@ function usableImageUrl(url) {
   }
 }
 
-function renderFaviconImg(className, pageUrl, size = 16, explicitIconUrl = '') {
-  const directIcon = usableImageUrl(explicitIconUrl);
+function renderFaviconImg(className, pageUrl, size = 16, explicitIconUrl = '', title = '') {
   const chromeIcon = chromeFaviconUrl(pageUrl, size);
-  const primaryIcon = directIcon || chromeIcon;
-  const fallbackIcon = directIcon && chromeIcon && directIcon !== chromeIcon ? chromeIcon : '';
+  const directIcon = usableImageUrl(explicitIconUrl);
+  const primaryIcon = chromeIcon || directIcon;
+  const fallbackIcon = directIcon && chromeIcon && directIcon !== chromeIcon ? directIcon : '';
+  const fallbackInitial = escapeHtml(siteInitial(pageUrl, title));
 
-  if (!primaryIcon) return '';
+  if (!primaryIcon) {
+    return `<span class="site-icon ${escapeHtml(className)} is-fallback" aria-hidden="true"><span class="site-icon-fallback">${fallbackInitial}</span></span>`;
+  }
 
-  return `<img class="${escapeHtml(className)}" src="${escapeHtml(primaryIcon)}" alt="" data-hide-on-error="true"${fallbackIcon ? ` data-fallback-src="${escapeHtml(fallbackIcon)}"` : ''}>`;
+  return `<span class="site-icon ${escapeHtml(className)}" aria-hidden="true"><img class="site-icon-img" src="${escapeHtml(primaryIcon)}" alt="" decoding="async" loading="lazy" data-hide-on-error="true"${fallbackIcon ? ` data-fallback-src="${escapeHtml(fallbackIcon)}"` : ''}><span class="site-icon-fallback">${fallbackInitial}</span></span>`;
 }
 
 function searchOrUrlTarget(rawValue) {
@@ -1173,7 +1202,8 @@ async function renderFavoritesShelf() {
       const safeUrl = escapeHtml(favorite.url);
       const safeTitle = escapeHtml(favorite.title);
       const safeSource = escapeHtml(favorite.source || 'top-site');
-      const faviconHtml = renderFaviconImg('favorite-favicon', favorite.url, 32, favorite.favIconUrl);
+      const favoriteIconPageUrl = canonicalIconPageUrl(favorite.url) || favorite.url;
+      const faviconHtml = renderFaviconImg('favorite-favicon', favoriteIconPageUrl, 32, favorite.favIconUrl, favorite.title);
 
       return `
         <div class="favorite-link favorite-item" role="link" tabindex="0" data-action="open-favorite" data-url="${safeUrl}" data-source="${safeSource}" title="${safeTitle}">
@@ -1458,7 +1488,7 @@ function buildOverflowChips(hiddenTabs, urlCounts = {}) {
     const safeUrl = escapeHtml(tab.url || '');
     const safeTitle = escapeHtml(label);
     const safeFaviconUrl = escapeHtml(tab.favIconUrl || '');
-    const faviconHtml = renderFaviconImg('chip-favicon', tab.url, 16, tab.favIconUrl);
+    const faviconHtml = renderFaviconImg('chip-favicon', tab.url, 16, tab.favIconUrl, label);
     return `<div class="page-chip clickable${chipClass}" draggable="true" data-action="focus-tab" data-tab-url="${safeUrl}" data-tab-title="${safeTitle}" data-favicon-url="${safeFaviconUrl}" title="${safeTitle}">
       ${faviconHtml}
       <span class="chip-text">${safeTitle}</span>${dupeTag}
@@ -1498,8 +1528,11 @@ function renderDomainCard(group) {
   const isCollapsed = collapsedDomainIds.has(stableId);
   const groupTitle = group.label || group.domain.replace(/^www\./, '');
   const groupIconTab = tabs.find(tab => tab.favIconUrl || tab.url);
+  const groupIconPageUrl = group.label
+    ? groupIconTab?.url
+    : canonicalIconPageUrl(groupIconTab?.url) || groupIconTab?.url;
   const groupFaviconHtml = groupIconTab
-    ? renderFaviconImg('mission-domain-favicon', groupIconTab.url, 32, groupIconTab.favIconUrl)
+    ? renderFaviconImg('mission-domain-favicon', groupIconPageUrl, 32, groupIconTab.favIconUrl, groupTitle)
     : '';
   const safeGroupTitle = escapeHtml(groupTitle);
 
@@ -1539,7 +1572,7 @@ function renderDomainCard(group) {
     const safeUrl = escapeHtml(tab.url || '');
     const safeTitle = escapeHtml(label);
     const safeFaviconUrl = escapeHtml(tab.favIconUrl || '');
-    const faviconHtml = renderFaviconImg('chip-favicon', tab.url, 16, tab.favIconUrl);
+    const faviconHtml = renderFaviconImg('chip-favicon', tab.url, 16, tab.favIconUrl, label);
     return `<div class="page-chip clickable${chipClass}" draggable="true" data-action="focus-tab" data-tab-url="${safeUrl}" data-tab-title="${safeTitle}" data-favicon-url="${safeFaviconUrl}" title="${safeTitle}">
       ${faviconHtml}
       <span class="chip-text">${safeTitle}</span>${dupeTag}
@@ -1657,7 +1690,7 @@ function renderDeferredItem(item) {
   const safeTitle = escapeHtml(item.title || item.url);
   const safeDomain = escapeHtml(domain);
   const safeAgo = escapeHtml(ago);
-  const faviconHtml = renderFaviconImg('deferred-favicon', item.url, 16, item.favIconUrl);
+  const faviconHtml = renderFaviconImg('deferred-favicon', item.url, 16, item.favIconUrl, item.title || item.url);
 
   return `
     <div class="deferred-item" data-deferred-id="${item.id}">

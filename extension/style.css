@@ -315,16 +315,51 @@ header {
   color: var(--accent-blue);
 }
 
+.site-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.72);
+  line-height: 1;
+}
+
+.site-icon-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.site-icon-fallback {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.site-icon.is-fallback .site-icon-img {
+  display: none;
+}
+
+.site-icon.is-fallback .site-icon-fallback {
+  display: inline-flex;
+}
+
 .favorite-favicon {
   width: 50px;
   height: 50px;
   padding: 14px;
   border: 1px solid var(--hairline);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.72);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.045);
-  object-fit: contain;
   flex-shrink: 0;
+  font-size: 18px;
   transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
 }
 
@@ -713,6 +748,7 @@ header {
   height: 17px;
   border-radius: 4px;
   flex-shrink: 0;
+  font-size: 10px;
 }
 
 .mission-name {
@@ -875,6 +911,7 @@ header {
   height: 15px;
   border-radius: 4px;
   flex-shrink: 0;
+  font-size: 9px;
 }
 
 .chip-text {
@@ -1123,10 +1160,13 @@ header {
 }
 
 .deferred-favicon {
+  display: inline-flex;
   width: 14px;
   height: 14px;
   margin-right: 4px;
   vertical-align: -2px;
+  border-radius: 4px;
+  font-size: 8px;
 }
 
 .deferred-meta {
