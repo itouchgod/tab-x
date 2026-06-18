@@ -2,6 +2,7 @@
   "manifest_version": 3,
   "name": "Tab X",
   "version": "2.0.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzp8S40U7swTra1i95MvapCBAWKXS1GjYLy2YrMNEpgW9KeJ2/7BK6VjSU9ltrCeOkn7Ec1mfvgcmTx0VBBnVWp4QLsJpoerD56ZqwNxaYPhuYRcL1ltJZNOkWsPU3FUDiKbvJzz7QFs/5eyCJAZFJE9EQu7ix1jA35WKPgTdNm6RhKExj/3rXwH2/cI6o9zK9P17tLKgLNvlzRG44eJzoLj5H1e66ko5Sg99iPdhb8Ny/tp0pjjvdIiouvzvRPmekW4Jh//zaNGZQZ1lziUx42xZqrSqZxy78LyXhWdliHzA27h+hHcoFtDHlAB2/Y8cM0H64ot7wOjXsRtYNxeRTQIDAQAB",
   "description": "Keep tabs on your tabs. New tab page that groups your open tabs by domain and lets you close them with style.",
   "permissions": ["tabs", "activeTab", "storage", "topSites", "history", "search", "favicon"],
   "chrome_url_overrides": { "newtab": "index.html" },
