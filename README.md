@@ -12,6 +12,20 @@ No server. No account. No build step. Everything runs inside the Chrome extensio
 
 ---
 
+## Chrome Web Store Status
+
+- Current submitted version: **2.0.0**
+- Chrome Web Store item ID: `mdpnfjjeclibnejfdcfnbclhdhjannac`
+- Submission date: June 18, 2026
+- Current store status: **Pending review**
+- Publication mode: publish automatically after review approval
+- Privacy policy: [PRIVACY.md](PRIVACY.md)
+- Publishing record: [PUBLISHING.md](PUBLISHING.md)
+
+Release upload bundles and store screenshots are generated locally and intentionally excluded from Git. See [PUBLISHING.md](PUBLISHING.md) for the full keep/exclude list.
+
+---
+
 ## Current Layout
 
 ```text
@@ -140,6 +154,7 @@ extension/
 ## Development Notes
 
 - `extension/config.local.js` is intentionally ignored and can be used for personal landing-page or grouping rules.
+- Chrome Web Store release working files are intentionally ignored: `store-assets/`, `tab-x-*.zip`, `*.crx`, and `*.pem`.
 - After editing files, reload the unpacked extension from `chrome://extensions`.
 - If permissions change, Chrome may ask for confirmation when the extension is reloaded.
 - Site-level icons, such as Top sites and domain group headers, use Chrome's native extension `/_favicon/` provider with the origin URL for a stable logo. Individual tab rows use the exact page URL and can fall back to Chrome's `tab.favIconUrl` when needed.

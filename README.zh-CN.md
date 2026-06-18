@@ -10,6 +10,20 @@ Tab X 会替换 Chrome 的新标签页，提供一个本地运行、Apple 风格
 
 ---
 
+## Chrome Web Store 状态
+
+- 当前提交版本：**2.0.0**
+- Chrome Web Store item ID：`mdpnfjjeclibnejfdcfnbclhdhjannac`
+- 提交日期：2026-06-18
+- 当前商店状态：**Pending review**
+- 发布方式：审核通过后自动发布
+- 隐私政策：[PRIVACY.md](PRIVACY.md)
+- 发布记录：[PUBLISHING.md](PUBLISHING.md)
+
+发布上传包和商店截图为本地生成的发布工作文件，已刻意排除在 Git 之外。完整保留/排除清单见 [PUBLISHING.md](PUBLISHING.md)。
+
+---
+
 ## 当前布局
 
 ```text
@@ -138,6 +152,7 @@ extension/
 ## 开发说明
 
 - `extension/config.local.js` 会被刻意忽略，可用于个人首页或分组规则。
+- Chrome Web Store 发布工作文件会被刻意忽略：`store-assets/`、`tab-x-*.zip`、`*.crx`、`*.pem`。
 - 修改文件后，在 `chrome://extensions` 重新加载未打包扩展。
 - 如果权限发生变化，Chrome 可能会在重新加载扩展时要求确认。
 - Top sites 和域名分组这类站点级图标会使用 Chrome 原生扩展 `/_favicon/` provider，并传入站点根地址，以获得更稳定的 logo；单个标签行会使用具体页面地址，必要时再回退到 Chrome 已知的 `tab.favIconUrl`。

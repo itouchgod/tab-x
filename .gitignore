@@ -4,5 +4,12 @@ node_modules/
 .DS_Store
 docs/superpowers/
 
+# Chrome Web Store release artifacts generated locally.
+# Keep source files in extension/ and docs in Git; keep upload bundles/assets local.
+store-assets/
+tab-x-*.zip
+*.crx
+*.pem
+
 # Personal config (landing page patterns, etc.) — never push to GitHub
 extension/config.local.js
