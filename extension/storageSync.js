@@ -128,21 +128,23 @@ function storageRemove(key) {
   });
 }
 
-async function assertSyncQuota(nextKey, nextList) {
-  const nextItemPayload = { [nextKey]: nextList };
-  const nextItemBytes = getByteLength(nextItemPayload);
+async function assertSyncPayloadQuota(nextPayload) {
+  for (const [nextKey, nextList] of Object.entries(nextPayload)) {
+    const nextItemPayload = { [nextKey]: nextList };
+    const nextItemBytes = getByteLength(nextItemPayload);
 
-  if (nextItemBytes > QUOTA_BYTES_PER_ITEM) {
-    throw new StorageSyncError(
-      `${nextKey} is ${nextItemBytes} bytes, which exceeds the ${QUOTA_BYTES_PER_ITEM} byte per-item sync limit.`,
-    );
+    if (nextItemBytes > QUOTA_BYTES_PER_ITEM) {
+      throw new StorageSyncError(
+        `${nextKey} is ${nextItemBytes} bytes, which exceeds the ${QUOTA_BYTES_PER_ITEM} byte per-item sync limit.`,
+      );
+    }
   }
 
   const current = await storageGet(Object.values(SYNC_KEYS));
   const nextState = {
     [SYNC_KEYS.savedForLater]: sanitizeList(current[SYNC_KEYS.savedForLater]),
     [SYNC_KEYS.archived]: sanitizeList(current[SYNC_KEYS.archived]),
-    [nextKey]: nextList,
+    ...nextPayload,
   };
   const nextTotalBytes = getByteLength(nextState);
 
@@ -151,6 +153,10 @@ async function assertSyncQuota(nextKey, nextList) {
       `Saved records would use ${nextTotalBytes} bytes, which exceeds the ${QUOTA_BYTES} byte total sync limit.`,
     );
   }
+}
+
+async function assertSyncQuota(nextKey, nextList) {
+  await assertSyncPayloadQuota({ [nextKey]: nextList });
 }
 
 async function getRecordList(key) {
@@ -177,7 +183,10 @@ async function addRecord(key, item) {
   try {
     const record = sanitizeRecord(item);
     const current = await getRecordList(key);
-    const next = [...current, record];
+    const next = [
+      ...current.filter(saved => saved.url !== record.url),
+      record,
+    ];
     return setRecordList(key, next);
   } catch (error) {
     throw toStorageError(`add item to ${key}`, error);
@@ -205,6 +214,10 @@ export async function addSavedForLater(item) {
   return addRecord(SYNC_KEYS.savedForLater, item);
 }
 
+export async function setSavedForLater(items) {
+  return setRecordList(SYNC_KEYS.savedForLater, items);
+}
+
 export async function removeSavedForLater(urlOrPredicate) {
   return removeRecord(SYNC_KEYS.savedForLater, urlOrPredicate);
 }
@@ -215,6 +228,29 @@ export async function getArchived() {
 
 export async function addArchived(item) {
   return addRecord(SYNC_KEYS.archived, item);
+}
+
+export async function setArchived(items) {
+  return setRecordList(SYNC_KEYS.archived, items);
+}
+
+export async function setSyncedDeferredLists({ savedForLater = [], archived = [] }) {
+  try {
+    const nextPayload = {
+      [SYNC_KEYS.savedForLater]: sanitizeList(savedForLater),
+      [SYNC_KEYS.archived]: sanitizeList(archived),
+    };
+
+    await assertSyncPayloadQuota(nextPayload);
+    await storageSet(nextPayload);
+
+    return {
+      savedForLater: nextPayload[SYNC_KEYS.savedForLater],
+      archived: nextPayload[SYNC_KEYS.archived],
+    };
+  } catch (error) {
+    throw toStorageError('save synced deferred lists', error);
+  }
 }
 
 export async function removeArchived(urlOrPredicate) {

@@ -10,8 +10,18 @@
    2. Groups tabs by domain with a landing pages category
    3. Renders domain cards, banners, and stats
    4. Handles all user actions (close tabs, save for later, focus tab)
-   5. Stores "Saved for Later" tabs in chrome.storage.local (no server)
+   5. Syncs "Saved for Later" tabs through chrome.storage.sync (no server)
    ================================================================ */
+
+import {
+  addSavedForLater,
+  getArchived,
+  getSavedForLater,
+  removeArchived,
+  removeSavedForLater,
+  setSyncedDeferredLists,
+  SYNC_KEYS,
+} from './storageSync.js';
 
 'use strict';
 
@@ -263,61 +273,142 @@ async function closeTabOutDupes() {
 
 
 /* ----------------------------------------------------------------
-   SAVED FOR LATER — chrome.storage.local
+   SAVED FOR LATER — chrome.storage.sync
 
-   Replaces the old server-side SQLite + REST API with Chrome's
-   built-in key-value storage. Data persists across browser sessions
-   and doesn't require a running server.
-
-   Data shape stored under the "deferred" key:
-   [
-     {
-       id: "1712345678901",          // timestamp-based unique ID
-       url: "https://example.com",
-       title: "Example Page",
-       savedAt: "2026-04-04T10:00:00.000Z",  // ISO date string
-       completed: false,             // true = checked off (archived)
-       dismissed: false              // true = dismissed without reading
-     },
-     ...
-   ]
+   The right-side panel now syncs through the user's Chrome account.
+   Records are intentionally tiny: url, title, timestamp. Favicons and
+   other heavy tab metadata are rendered from the URL instead of stored.
    ---------------------------------------------------------------- */
 
-/**
- * saveTabForLater(tab)
- *
- * Saves a single tab to the "Saved for Later" list in chrome.storage.local.
- * @param {{ url: string, title: string }} tab
- */
-async function saveTabForLater(tab) {
-  const { deferred = [] } = await chrome.storage.local.get('deferred');
-  const savedItem = {
-    id:        Date.now().toString(),
-    url:       tab.url,
-    title:     tab.title,
-    favIconUrl: tab.favIconUrl || '',
-    savedAt:   new Date().toISOString(),
-    completed: false,
+const LEGACY_DEFERRED_KEY = 'deferred';
+const LEGACY_DEFERRED_MIGRATED_KEY = 'deferredSyncMigrated';
+let deferredSyncRenderMutedUntil = 0;
+let deferredSyncMigrationPromise = null;
+
+function muteLocalDeferredSyncRender(ms = 1200) {
+  deferredSyncRenderMutedUntil = Math.max(deferredSyncRenderMutedUntil, Date.now() + ms);
+}
+
+function toTimestamp(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Date.parse(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return Date.now();
+}
+
+function toSyncRecord(record, fallbackTimestamp = Date.now()) {
+  return {
+    url: record.url,
+    title: record.title || record.url,
+    timestamp: toTimestamp(record.timestamp || record.completedAt || record.savedAt || fallbackTimestamp),
+  };
+}
+
+function toDeferredItem(record, mode = 'active') {
+  const timestamp = toTimestamp(record.timestamp);
+  const isoTime = new Date(timestamp).toISOString();
+
+  return {
+    id: record.url,
+    url: record.url,
+    title: record.title || record.url,
+    savedAt: isoTime,
+    completedAt: mode === 'archived' ? isoTime : undefined,
+    completed: mode === 'archived',
     dismissed: false,
   };
-  deferred.push(savedItem);
-  await chrome.storage.local.set({ deferred });
-  return savedItem;
+}
+
+function mergeSyncRecords(...lists) {
+  const recordsByUrl = new Map();
+
+  for (const list of lists) {
+    for (const item of list) {
+      if (!item?.url) continue;
+      recordsByUrl.set(item.url, toSyncRecord(item));
+    }
+  }
+
+  return Array.from(recordsByUrl.values());
+}
+
+function watchSyncedDeferredChanges() {
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== 'sync') return;
+    if (!changes[SYNC_KEYS.savedForLater] && !changes[SYNC_KEYS.archived]) return;
+
+    if (Date.now() < deferredSyncRenderMutedUntil) return;
+    renderDeferredColumn();
+  });
+}
+
+async function migrateLegacyDeferredToSync() {
+  if (deferredSyncMigrationPromise) return deferredSyncMigrationPromise;
+
+  deferredSyncMigrationPromise = (async () => {
+    const {
+      [LEGACY_DEFERRED_KEY]: legacyDeferred = [],
+      [LEGACY_DEFERRED_MIGRATED_KEY]: migrated = false,
+    } = await chrome.storage.local.get([LEGACY_DEFERRED_KEY, LEGACY_DEFERRED_MIGRATED_KEY]);
+
+    if (migrated || !Array.isArray(legacyDeferred)) return;
+
+    const visibleLegacy = legacyDeferred.filter(item => item?.url && !item.dismissed);
+    if (visibleLegacy.length === 0) {
+      await chrome.storage.local.set({ [LEGACY_DEFERRED_MIGRATED_KEY]: true });
+      return;
+    }
+
+    const currentSaved = await getSavedForLater();
+    const currentArchived = await getArchived();
+    const legacySaved = visibleLegacy
+      .filter(item => !item.completed)
+      .map(item => toSyncRecord(item, item.savedAt));
+    const legacyArchived = visibleLegacy
+      .filter(item => item.completed)
+      .map(item => toSyncRecord(item, item.completedAt || item.savedAt));
+
+    muteLocalDeferredSyncRender();
+    await setSyncedDeferredLists({
+      savedForLater: mergeSyncRecords(currentSaved, legacySaved),
+      archived: mergeSyncRecords(currentArchived, legacyArchived),
+    });
+    await chrome.storage.local.set({ [LEGACY_DEFERRED_MIGRATED_KEY]: true });
+  })().catch(err => {
+    console.warn('[tab-x] Could not migrate legacy saved tabs to sync:', err);
+  });
+
+  return deferredSyncMigrationPromise;
+}
+
+async function saveTabForLater(tab) {
+  const record = toSyncRecord({
+    url: tab.url,
+    title: tab.title,
+    timestamp: Date.now(),
+  });
+
+  muteLocalDeferredSyncRender();
+  await addSavedForLater(record);
+  return toDeferredItem(record, 'active');
 }
 
 /**
  * getSavedTabs()
  *
- * Returns all saved tabs from chrome.storage.local.
- * Filters out dismissed items (those are gone for good).
- * Splits into active (not completed) and archived (completed).
+ * Returns synced saved tabs split into active and archived lists.
  */
 async function getSavedTabs() {
-  const { deferred = [] } = await chrome.storage.local.get('deferred');
-  const visible = deferred.filter(t => !t.dismissed);
+  const [savedForLater, archived] = await Promise.all([
+    getSavedForLater(),
+    getArchived(),
+  ]);
+
   return {
-    active:   visible.filter(t => !t.completed),
-    archived: visible.filter(t => t.completed),
+    active: savedForLater.map(item => toDeferredItem(item, 'active')),
+    archived: archived.map(item => toDeferredItem(item, 'archived')),
   };
 }
 
@@ -327,14 +418,27 @@ async function getSavedTabs() {
  * Marks a saved tab as completed (checked off). It moves to the archive.
  */
 async function checkOffSavedTab(id) {
-  const { deferred = [] } = await chrome.storage.local.get('deferred');
-  const tab = deferred.find(t => t.id === id);
-  if (tab) {
-    tab.completed = true;
-    tab.completedAt = new Date().toISOString();
-    await chrome.storage.local.set({ deferred });
-  }
-  return tab || null;
+  const [savedForLater, archived] = await Promise.all([
+    getSavedForLater(),
+    getArchived(),
+  ]);
+  const tab = savedForLater.find(item => item.url === id);
+  if (!tab) return null;
+
+  const archivedRecord = toSyncRecord({
+    ...tab,
+    timestamp: Date.now(),
+  });
+
+  muteLocalDeferredSyncRender();
+  await setSyncedDeferredLists({
+    savedForLater: savedForLater.filter(item => item.url !== id),
+    archived: [
+      ...archived.filter(item => item.url !== id),
+      archivedRecord,
+    ],
+  });
+  return toDeferredItem(archivedRecord, 'archived');
 }
 
 /**
@@ -343,19 +447,13 @@ async function checkOffSavedTab(id) {
  * Marks a saved tab as dismissed (removed from all lists).
  */
 async function dismissSavedTab(id) {
-  const { deferred = [] } = await chrome.storage.local.get('deferred');
-  const tab = deferred.find(t => t.id === id);
-  if (tab) {
-    tab.dismissed = true;
-    await chrome.storage.local.set({ deferred });
-  }
+  muteLocalDeferredSyncRender();
+  await removeSavedForLater(id);
 }
 
 async function deleteSavedTab(id) {
-  const { deferred = [] } = await chrome.storage.local.get('deferred');
-  await chrome.storage.local.set({
-    deferred: deferred.filter(t => t.id !== id),
-  });
+  muteLocalDeferredSyncRender();
+  await removeArchived(id);
 }
 
 
@@ -774,7 +872,12 @@ function buildDomainGroups(realTabs) {
   const groupMap = {};
 
   // Custom group rules from config.local.js (if any)
-  const customGroups = typeof LOCAL_CUSTOM_GROUPS !== 'undefined' ? LOCAL_CUSTOM_GROUPS : [];
+  let customGroups = [];
+  if (typeof LOCAL_CUSTOM_GROUPS !== 'undefined' && Array.isArray(LOCAL_CUSTOM_GROUPS)) {
+    customGroups = LOCAL_CUSTOM_GROUPS;
+  } else if (Array.isArray(globalThis.LOCAL_CUSTOM_GROUPS)) {
+    customGroups = globalThis.LOCAL_CUSTOM_GROUPS;
+  }
 
   // Check if a URL matches a custom group rule; returns the rule or null
   function matchCustomGroup(url) {
@@ -1971,9 +2074,8 @@ function renderDomainCard(group) {
 /**
  * renderDeferredColumn()
  *
- * Reads saved tabs from chrome.storage.local and renders the right-side
- * "Saved for Later" checklist column. Archived items stay in storage but
- * are intentionally not shown in the compact side panel.
+ * Reads saved tabs from chrome.storage.sync and renders the right-side
+ * Saved for later + Archived accordion column.
  */
 async function renderDeferredColumn() {
   const column         = document.getElementById('deferredColumn');
@@ -2056,14 +2158,15 @@ function renderDeferredItem(item, mode = 'active') {
   const safeTitle = escapeHtml(item.title || item.url);
   const safeDomain = escapeHtml(domain);
   const safeAgo = escapeHtml(mode === 'archived' ? completedAgo : ago);
+  const safeId = escapeHtml(item.id || item.url);
   const faviconHtml = renderFaviconImg('deferred-favicon', item.url, 16, item.favIconUrl, item.title || item.url);
   const isArchived = mode === 'archived';
 
   return `
-    <div class="deferred-item${isArchived ? ' archived' : ''}" data-deferred-id="${item.id}">
+    <div class="deferred-item${isArchived ? ' archived' : ''}" data-deferred-id="${safeId}">
       ${isArchived
         ? '<span class="deferred-archived-mark" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m20.25 7.5-.625 10.632A2.25 2.25 0 0 1 17.378 20.25H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5m16.5 0H3.75m16.5 0-1.5-3h-13.5l-1.5 3M9.75 12h4.5" /></svg></span>'
-        : `<input type="checkbox" class="deferred-checkbox" data-action="check-deferred" data-deferred-id="${item.id}">`}
+        : `<input type="checkbox" class="deferred-checkbox" data-action="check-deferred" data-deferred-id="${safeId}">`}
       <div class="deferred-info">
         <button type="button" class="deferred-title deferred-title-button" data-action="open-deferred" data-url="${safeUrl}" aria-label="Open ${safeTitle}">
           ${faviconHtml}${safeTitle}
@@ -2073,7 +2176,7 @@ function renderDeferredItem(item, mode = 'active') {
           <span>${isArchived ? 'archived ' : ''}${safeAgo}</span>
         </div>
       </div>
-      <button class="deferred-dismiss" data-action="${isArchived ? 'delete-archived-deferred' : 'dismiss-deferred'}" data-deferred-id="${item.id}" title="${isArchived ? 'Delete' : 'Dismiss'}">
+      <button class="deferred-dismiss" data-action="${isArchived ? 'delete-archived-deferred' : 'dismiss-deferred'}" data-deferred-id="${safeId}" title="${isArchived ? 'Delete' : 'Dismiss'}">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
       </button>
     </div>`;
@@ -2315,14 +2418,12 @@ document.addEventListener('click', async (e) => {
     e.stopPropagation();
     const tabUrl   = actionEl.dataset.tabUrl;
     const tabTitle = actionEl.dataset.tabTitle || tabUrl;
-    const matchingTab = openTabs.find(t => t.url === tabUrl);
-    const favIconUrl = matchingTab?.favIconUrl || actionEl.dataset.faviconUrl || '';
     if (!tabUrl) return;
 
-    // Save to chrome.storage.local
+    // Save to chrome.storage.sync
     let savedItem;
     try {
-      savedItem = await saveTabForLater({ url: tabUrl, title: tabTitle, favIconUrl });
+      savedItem = await saveTabForLater({ url: tabUrl, title: tabTitle });
     } catch (err) {
       console.error('[tab-x] Failed to save tab:', err);
       showToast('Failed to save tab');
@@ -2550,7 +2651,13 @@ document.addEventListener('drop', async (e) => {
 /* ----------------------------------------------------------------
    INITIALIZE
    ---------------------------------------------------------------- */
-renderDashboard();
+async function initDashboard() {
+  watchSyncedDeferredChanges();
+  await migrateLegacyDeferredToSync();
+  await renderDashboard();
+}
+
+initDashboard();
 updateWordClockFooter();
 setInterval(updateGanzhiHeader, 60000);
 setInterval(updateWordClockFooter, 1000);

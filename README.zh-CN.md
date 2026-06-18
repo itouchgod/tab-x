@@ -53,10 +53,10 @@ Tab X 会替换 Chrome 的新标签页，提供一个本地运行、Apple 风格
 - **关闭反馈**：关闭标签时提供 swoosh 声音和礼花动画。
 - **稍后再看**：关闭前可把标签保存到本地清单；打勾后的项目会进入同一卡片内的 Archived 手风琴区域，并可删除。
 - **局部更新交互**：保存、归档、删除右侧记录时只更新当前条目和计数，避免整块列表反复刷新。
-- **同步存储工具**：提供可导入的 `chrome.storage.sync` 工具模块，只保存 `url`、`title`、`timestamp`，避免同步配额被 favicon 或大字段占满。
+- **跨设备同步记录**：稍后再看和 Archived 使用 `chrome.storage.sync`，可跟随同一个 Google 账号同步到其他 Chrome 设备。
 - **Localhost 分组**：显示端口号，方便区分本地开发项目。
 - **可展开分组**：每组默认显示前 8 个标签，更多标签通过 `+N more` 展开。
-- **100% 本地数据存储**：使用 Chrome 扩展 API 和 `chrome.storage.local`。
+- **无服务端数据存储**：Tab X 只使用 Chrome 扩展存储 API，不需要外部服务器或数据库。
 
 ---
 
@@ -108,8 +108,8 @@ cd tab-x
 | 快捷入口历史回退 | `chrome.history` |
 | 网站图标 | Chrome 扩展 `/_favicon/` API，并用首字母占位兜底 |
 | 新标签页 favicon | 内置 Chrome 风格 `icons/newtab-favicon.svg` 资源 |
-| 稍后再看界面 | `chrome.storage.local` key `deferred` |
-| 同步存储工具 | `chrome.storage.sync` keys `savedForLater`, `archived`；写入前压缩为 `url`, `title`, `timestamp` |
+| 稍后再看 + Archived | `chrome.storage.sync` keys `savedForLater`, `archived`；写入前压缩为 `url`, `title`, `timestamp` |
+| 旧版稍后再看迁移 | 旧 `chrome.storage.local` key `deferred` 会在首次运行时合并迁移到同步存储 |
 | 手动快捷入口 | `chrome.storage.local` key `favoriteLinks` |
 | 隐藏的自动快捷入口 | `chrome.storage.local` key `hiddenTopSiteUrls` |
 | 打开标签排序偏好 | `chrome.storage.local` key `openTabsSortMode` |

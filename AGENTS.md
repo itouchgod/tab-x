@@ -120,8 +120,9 @@ Once the extension is loaded:
 
 - Tab X is a pure Chrome Manifest V3 extension.
 - No server, no Node.js runtime, no npm install, no database.
-- Saved tabs for the current UI and custom shortcuts are stored in `chrome.storage.local`.
-- The optional `storageSync.js` utility uses `chrome.storage.sync` and strips records to `url`, `title`, and `timestamp`.
+- Saved tabs and archived records are stored in `chrome.storage.sync` and stripped to `url`, `title`, and `timestamp`.
+- Existing legacy saved tabs from `chrome.storage.local` are migrated into sync storage once.
+- Custom shortcuts and hidden automatic shortcuts are still stored in `chrome.storage.local`.
 - Chrome top sites come from `chrome.topSites`.
 - If `chrome.topSites` is empty, Tab X uses `chrome.history` as a fallback.
 - To update after code changes, reload the extension in `chrome://extensions`.

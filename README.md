@@ -55,10 +55,10 @@ The bottom area is intentionally compressed: a thin centered footer keeps the de
 - **Close tabs with feedback** using a swoosh sound and confetti burst.
 - **Save for later** stores a tab in a local checklist before closing it; checked items move into an Archived accordion inside the same side card.
 - **Smooth local updates** keep the saved/archived panel from visually refreshing when items are added, archived, or removed.
-- **Sync-ready storage utility** provides a modular `chrome.storage.sync` helper that stores only `url`, `title`, and `timestamp` to protect Chrome sync quotas.
+- **Synced saved records** use `chrome.storage.sync` so Saved for later and Archived can follow the same Google account across Chrome devices.
 - **Localhost grouping** includes port numbers so local dev projects are easier to tell apart.
 - **Expandable groups** show the first 8 tabs, with a `+N more` control for larger groups.
-- **100% local data storage** using Chrome extension APIs and `chrome.storage.local`.
+- **No server-side data storage**: Tab X uses Chrome extension storage APIs only.
 
 ---
 
@@ -110,8 +110,8 @@ If you already loaded Tab X before, click **Reload** on the extension card after
 | History fallback for shortcuts | `chrome.history` |
 | Site icons | Chrome extension `/_favicon/` API, with initials fallback |
 | New tab favicon | Bundled Chrome-style `icons/newtab-favicon.svg` asset |
-| Saved for later UI | `chrome.storage.local` key `deferred` |
-| Sync storage utility | `chrome.storage.sync` keys `savedForLater`, `archived`; sanitized to `url`, `title`, `timestamp` |
+| Saved for later + Archived | `chrome.storage.sync` keys `savedForLater`, `archived`; sanitized to `url`, `title`, `timestamp` |
+| Legacy saved-record migration | Old `chrome.storage.local` key `deferred` is migrated once into sync storage |
 | Manual shortcuts | `chrome.storage.local` key `favoriteLinks` |
 | Hidden automatic shortcuts | `chrome.storage.local` key `hiddenTopSiteUrls` |
 | Open tabs sort preference | `chrome.storage.local` key `openTabsSortMode` |
