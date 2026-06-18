@@ -1,14 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <!-- Rounded rectangle background in amber -->
-  <rect x="4" y="4" width="120" height="120" rx="24" ry="24" fill="#c8713a"/>
-  <!-- White "M" letter centered -->
-  <text
-    x="64"
-    y="90"
-    font-family="Georgia, serif"
-    font-size="80"
-    font-weight="bold"
-    fill="white"
-    text-anchor="middle"
-  >M</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">Tab X</title>
+  <rect x="12" y="12" width="104" height="104" rx="30" fill="#f8fafc"/>
+  <path
+    fill="#4b5563"
+    d="M23.5 29.5A14 14 0 0 1 43.3 29.5L64 50.2l20.7-20.7a14 14 0 0 1 19.8 19.8L83.8 70l20.7 20.7a14 14 0 1 1-19.8 19.8L64 89.8l-20.7 20.7a14 14 0 1 1-19.8-19.8L44.2 70 23.5 49.3a14 14 0 0 1 0-19.8Z"
+  />
+  <circle cx="64" cy="70" r="13" fill="#f8fafc"/>
+  <circle cx="64" cy="70" r="7.5" fill="#4b5563"/>
 </svg>
