@@ -1465,6 +1465,148 @@ async function searchOrNavigate(rawValue) {
   await navigateCurrentTab(`https://www.google.com/search?q=${encodeURIComponent(value)}`);
 }
 
+const SEARCH_SUGGESTIONS_ENDPOINT = 'https://suggestqueries.google.com/complete/search';
+const SEARCH_SUGGESTIONS_DEBOUNCE_MS = 180;
+const SEARCH_SUGGESTIONS_LIMIT = 8;
+
+let searchSuggestions = [];
+let activeSearchSuggestionIndex = -1;
+let searchSuggestionTimer = null;
+let searchSuggestionAbortController = null;
+let searchSuggestionRequestToken = 0;
+let searchSuggestionBlurTimer = null;
+
+function renderSearchSuggestions(suggestions) {
+  const input = document.getElementById('newTabSearchInput');
+  const list = document.getElementById('newTabSearchSuggestions');
+  if (!input || !list) return;
+
+  searchSuggestions = suggestions;
+  activeSearchSuggestionIndex = -1;
+  input.removeAttribute('aria-activedescendant');
+  input.setAttribute('aria-expanded', suggestions.length > 0 ? 'true' : 'false');
+  list.replaceChildren();
+
+  if (suggestions.length === 0) {
+    list.hidden = true;
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  suggestions.forEach((suggestion, index) => {
+    const option = document.createElement('li');
+    option.id = `newTabSearchSuggestion-${index}`;
+    option.className = 'search-suggestion';
+    option.dataset.suggestionIndex = String(index);
+    option.setAttribute('role', 'option');
+    option.setAttribute('aria-selected', 'false');
+    option.textContent = suggestion;
+    fragment.appendChild(option);
+  });
+
+  list.appendChild(fragment);
+  list.hidden = false;
+}
+
+function cancelPendingSearchSuggestions() {
+  if (searchSuggestionTimer !== null) {
+    clearTimeout(searchSuggestionTimer);
+    searchSuggestionTimer = null;
+  }
+
+  if (searchSuggestionAbortController) {
+    searchSuggestionAbortController.abort();
+    searchSuggestionAbortController = null;
+  }
+}
+
+function hideSearchSuggestions() {
+  searchSuggestionRequestToken += 1;
+  cancelPendingSearchSuggestions();
+  renderSearchSuggestions([]);
+}
+
+function setActiveSearchSuggestion(nextIndex) {
+  const input = document.getElementById('newTabSearchInput');
+  const list = document.getElementById('newTabSearchSuggestions');
+  if (!input || !list || list.hidden || searchSuggestions.length === 0) return;
+
+  activeSearchSuggestionIndex = Math.max(0, Math.min(nextIndex, searchSuggestions.length - 1));
+
+  list.querySelectorAll('.search-suggestion').forEach((option, index) => {
+    const isActive = index === activeSearchSuggestionIndex;
+    option.classList.toggle('is-active', isActive);
+    option.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+
+  const activeOption = document.getElementById(`newTabSearchSuggestion-${activeSearchSuggestionIndex}`);
+  if (activeOption) {
+    input.setAttribute('aria-activedescendant', activeOption.id);
+    activeOption.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+async function selectSearchSuggestion(index) {
+  const suggestion = searchSuggestions[index];
+  if (!suggestion) return;
+
+  const input = document.getElementById('newTabSearchInput');
+  if (input) input.value = suggestion;
+
+  hideSearchSuggestions();
+  await searchOrNavigate(suggestion);
+}
+
+function scheduleSearchSuggestions(rawValue) {
+  const query = (rawValue || '').trim();
+  cancelPendingSearchSuggestions();
+  renderSearchSuggestions([]);
+
+  const requestToken = ++searchSuggestionRequestToken;
+  if (query.length < 2) return;
+
+  searchSuggestionTimer = setTimeout(async () => {
+    searchSuggestionTimer = null;
+    const controller = new AbortController();
+    searchSuggestionAbortController = controller;
+
+    try {
+      const response = await fetch(
+        `${SEARCH_SUGGESTIONS_ENDPOINT}?client=chrome&q=${encodeURIComponent(query)}`,
+        {
+          signal: controller.signal,
+          credentials: 'omit',
+        },
+      );
+      if (!response.ok) return;
+
+      const payload = await response.json();
+      const input = document.getElementById('newTabSearchInput');
+      if (
+        controller.signal.aborted ||
+        requestToken !== searchSuggestionRequestToken ||
+        !input ||
+        input.value.trim() !== query
+      ) {
+        return;
+      }
+
+      const suggestions = Array.isArray(payload?.[1])
+        ? payload[1]
+          .filter(suggestion => typeof suggestion === 'string' && suggestion.trim())
+          .slice(0, SEARCH_SUGGESTIONS_LIMIT)
+        : [];
+      renderSearchSuggestions(suggestions);
+    } catch {
+      if (requestToken === searchSuggestionRequestToken) renderSearchSuggestions([]);
+    } finally {
+      if (searchSuggestionAbortController === controller) {
+        searchSuggestionAbortController = null;
+      }
+    }
+  }, SEARCH_SUGGESTIONS_DEBOUNCE_MS);
+}
+
 async function getTopSites(limit = 10) {
   if (!chrome.topSites || !chrome.topSites.get) return [];
 
@@ -2248,7 +2390,70 @@ document.addEventListener('submit', async (e) => {
   e.preventDefault();
 
   const input = document.getElementById('newTabSearchInput');
+  hideSearchSuggestions();
   await searchOrNavigate(input ? input.value : '');
+});
+
+document.addEventListener('input', (e) => {
+  if (e.target.id !== 'newTabSearchInput') return;
+  clearTimeout(searchSuggestionBlurTimer);
+  searchSuggestionBlurTimer = null;
+  scheduleSearchSuggestions(e.target.value);
+});
+
+document.addEventListener('focusin', (e) => {
+  if (e.target.id !== 'newTabSearchInput') return;
+  clearTimeout(searchSuggestionBlurTimer);
+  searchSuggestionBlurTimer = null;
+});
+
+document.addEventListener('keydown', async (e) => {
+  if (e.target.id !== 'newTabSearchInput') return;
+
+  const list = document.getElementById('newTabSearchSuggestions');
+  if (e.key === 'Escape') {
+    if (list && !list.hidden) e.preventDefault();
+    hideSearchSuggestions();
+    return;
+  }
+
+  if (!list || list.hidden || searchSuggestions.length === 0) return;
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    setActiveSearchSuggestion(activeSearchSuggestionIndex + 1);
+    return;
+  }
+
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    const nextIndex = activeSearchSuggestionIndex < 0
+      ? searchSuggestions.length - 1
+      : activeSearchSuggestionIndex - 1;
+    setActiveSearchSuggestion(nextIndex);
+    return;
+  }
+
+  if (e.key === 'Enter' && activeSearchSuggestionIndex >= 0) {
+    e.preventDefault();
+    await selectSearchSuggestion(activeSearchSuggestionIndex);
+  }
+});
+
+document.addEventListener('mousedown', (e) => {
+  if (e.target.closest('#newTabSearchSuggestions')) e.preventDefault();
+});
+
+document.addEventListener('click', async (e) => {
+  const option = e.target.closest('.search-suggestion[data-suggestion-index]');
+  if (!option) return;
+  await selectSearchSuggestion(Number(option.dataset.suggestionIndex));
+});
+
+document.addEventListener('focusout', (e) => {
+  if (e.target.id !== 'newTabSearchInput') return;
+  clearTimeout(searchSuggestionBlurTimer);
+  searchSuggestionBlurTimer = setTimeout(hideSearchSuggestions, 120);
 });
 
 document.addEventListener('change', async (e) => {

@@ -2,11 +2,11 @@
 
 [中文说明](README.zh-CN.md)
 
-Current version: **2.0.0**
+Current version: **2.0.1**
 
 **A calm Chrome new tab dashboard for tabs, shortcuts, and time.**
 
-Tab X replaces Chrome's new tab page with a local, Apple-inspired dashboard. It shows the current Ganzhi time on the left, a word clock plus open-tab count on the right, icon-style access to top sites, and a clean domain-grouped view of every tab you currently have open. Version 2.0.0 also refines the saved-items panel, adds adaptive dark mode, and introduces a compact footer signature with a manual theme toggle.
+Tab X replaces Chrome's new tab page with a local, Apple-inspired dashboard. It shows the current Ganzhi time on the left, a word clock plus open-tab count on the right, icon-style access to top sites, and a clean domain-grouped view of every tab you currently have open. Version 2.0.1 adds the new hexagon-cube logo and live Google search suggestions in the search box, while retaining the saved-items panel refinements, adaptive dark mode, and compact footer signature with a manual theme toggle.
 
 No server. No account. No build step. Everything runs inside the Chrome extension.
 
@@ -14,9 +14,9 @@ No server. No account. No build step. Everything runs inside the Chrome extensio
 
 ## Chrome Web Store Status
 
-- Current submitted version: **2.0.0**
+- Current submitted version: **2.0.1**
 - Chrome Web Store item ID: `mdpnfjjeclibnejfdcfnbclhdhjannac`
-- Submission date: June 18, 2026
+- Submission date: July 31, 2026
 - Current store status: **Pending review**
 - Publication mode: publish automatically after review approval
 - Privacy policy: [PRIVACY.md](PRIVACY.md)
@@ -119,11 +119,11 @@ If you already loaded Tab X before, click **Reload** on the extension card after
 | New tab replacement | Chrome Manifest V3 `chrome_url_overrides.newtab` |
 | Open tabs and focusing tabs | `chrome.tabs`, `chrome.windows` |
 | Open tab count badge | `chrome.action` in the service worker |
-| Search | `chrome.search`, with URL fallback |
+| Search | `chrome.search`, with URL fallback and Google live suggestions |
 | Top sites | `chrome.topSites` |
 | History fallback for shortcuts | `chrome.history` |
 | Site icons | Chrome extension `/_favicon/` API, with initials fallback |
-| New tab favicon | Bundled Chrome-style `icons/newtab-favicon.svg` asset |
+| New tab favicon | Bundled Tab X logo at `icons/newtab-favicon.png` |
 | Saved for later + Archived | `chrome.storage.sync` keys `savedForLater`, `archived`; sanitized to `url`, `title`, `timestamp` |
 | Legacy saved-record migration | Old `chrome.storage.local` key `deferred` is migrated once into sync storage |
 | Manual shortcuts | `chrome.storage.local` key `favoriteLinks` |
@@ -158,7 +158,7 @@ extension/
 - After editing files, reload the unpacked extension from `chrome://extensions`.
 - If permissions change, Chrome may ask for confirmation when the extension is reloaded.
 - Site-level icons, such as Top sites and domain group headers, use Chrome's native extension `/_favicon/` provider with the origin URL for a stable logo. Individual tab rows use the exact page URL and can fall back to Chrome's `tab.favIconUrl` when needed.
-- The browser tab favicon is declared in `index.html` using `icons/newtab-favicon.svg`, so it stays visible and does not reuse Tab X's extension icon.
+- The browser tab favicon is declared in `index.html` using `icons/newtab-favicon.png`, matching the Tab X extension logo.
 - `storageSync.js` is intentionally strict about synced data shape. It strips favicons, base64 data, images, and heavy metadata before writing to `chrome.storage.sync`.
 
 ---

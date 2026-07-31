@@ -1,10 +1,10 @@
 # Tab X
 
-当前版本：**2.0.0**
+当前版本：**2.0.1**
 
 **一个安静的 Chrome 新标签页仪表盘，用来管理标签、快捷入口和时间。**
 
-Tab X 会替换 Chrome 的新标签页，提供一个本地运行、Apple 风格的清爽仪表盘。左侧显示当前干支时间，右侧显示英文自然语言时钟和已打开标签数量，中间提供搜索框与图标式常用网站入口，主区域则按主域名整理你当前打开的所有标签。2.0.0 进一步优化了稍后再看面板、自动深色模式和底部极简署名区域。
+Tab X 会替换 Chrome 的新标签页，提供一个本地运行、Apple 风格的清爽仪表盘。左侧显示当前干支时间，右侧显示英文自然语言时钟和已打开标签数量，中间提供搜索框与图标式常用网站入口，主区域则按主域名整理你当前打开的所有标签。2.0.1 更新了新的六边形立方体 logo，并在搜索框中加入 Google 搜索联想建议，同时保留稍后再看面板、自动深色模式和底部极简署名区域。
 
 无需服务器。无需账号。无需构建步骤。所有内容都运行在 Chrome 扩展里。
 
@@ -12,9 +12,9 @@ Tab X 会替换 Chrome 的新标签页，提供一个本地运行、Apple 风格
 
 ## Chrome Web Store 状态
 
-- 当前提交版本：**2.0.0**
+- 当前提交版本：**2.0.1**
 - Chrome Web Store item ID：`mdpnfjjeclibnejfdcfnbclhdhjannac`
-- 提交日期：2026-06-18
+- 提交日期：2026-07-31
 - 当前商店状态：**Pending review**
 - 发布方式：审核通过后自动发布
 - 隐私政策：[PRIVACY.md](PRIVACY.md)
@@ -117,11 +117,11 @@ cd tab-x
 | 新标签页替换 | Chrome Manifest V3 `chrome_url_overrides.newtab` |
 | 读取与聚焦打开标签 | `chrome.tabs`, `chrome.windows` |
 | 打开标签数量徽标 | service worker 中的 `chrome.action` |
-| 搜索 | `chrome.search`，并带有 URL 回退逻辑 |
+| 搜索 | `chrome.search`，并带有 URL 回退逻辑和 Google 实时建议 |
 | Top sites | `chrome.topSites` |
 | 快捷入口历史回退 | `chrome.history` |
 | 网站图标 | Chrome 扩展 `/_favicon/` API，并用首字母占位兜底 |
-| 新标签页 favicon | 内置 Chrome 风格 `icons/newtab-favicon.svg` 资源 |
+| 新标签页 favicon | 内置 Tab X logo `icons/newtab-favicon.png` 资源 |
 | 稍后再看 + Archived | `chrome.storage.sync` keys `savedForLater`, `archived`；写入前压缩为 `url`, `title`, `timestamp` |
 | 旧版稍后再看迁移 | 旧 `chrome.storage.local` key `deferred` 会在首次运行时合并迁移到同步存储 |
 | 手动快捷入口 | `chrome.storage.local` key `favoriteLinks` |
@@ -156,7 +156,7 @@ extension/
 - 修改文件后，在 `chrome://extensions` 重新加载未打包扩展。
 - 如果权限发生变化，Chrome 可能会在重新加载扩展时要求确认。
 - Top sites 和域名分组这类站点级图标会使用 Chrome 原生扩展 `/_favicon/` provider，并传入站点根地址，以获得更稳定的 logo；单个标签行会使用具体页面地址，必要时再回退到 Chrome 已知的 `tab.favIconUrl`。
-- 浏览器标签栏里的 favicon 在 `index.html` 中声明为 `icons/newtab-favicon.svg`，可以稳定显示，并且不会继续复用 Tab X 的扩展图标。
+- 浏览器标签栏里的 favicon 在 `index.html` 中声明为 `icons/newtab-favicon.png`，与 Tab X 扩展图标保持一致。
 - `storageSync.js` 会严格清洗同步数据，写入 `chrome.storage.sync` 前会移除 favicon、base64 图片和其他重字段，只保留跨设备同步真正需要的轻量信息。
 
 ---

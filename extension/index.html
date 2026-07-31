@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tab X</title>
 
-  <link rel="icon" href="icons/newtab-favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="icons/newtab-favicon.png" type="image/png">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -27,7 +27,8 @@
       <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.197 5.197a7.5 7.5 0 0 0 10.606 10.606Z" />
       </svg>
-      <input id="newTabSearchInput" type="text" autocomplete="off" spellcheck="false" placeholder="Search Google or type a URL" aria-label="Search Google or type a URL">
+      <input id="newTabSearchInput" type="text" autocomplete="off" spellcheck="false" placeholder="Search Google or type a URL" aria-label="Search Google or type a URL" aria-autocomplete="list" aria-controls="newTabSearchSuggestions" aria-expanded="false">
+      <ul id="newTabSearchSuggestions" class="search-suggestions" role="listbox" aria-label="Search suggestions" hidden></ul>
       <button class="search-submit" type="submit" title="Search">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
